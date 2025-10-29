@@ -75,7 +75,19 @@ function displayStocks(timeframe, stocks) {
     stocks.forEach((stock, index) => {
         const prediction = stock[timeframe.replace('tab-', '') + '_term'] || stock.short_term;
         const predictedPrice = prediction.predicted_price;
-        const changePercent = ((predictedPrice - stock.current_price) / stock.current_price * 100).toFixed(2);
+
+        // Safe price formatting
+        const currentPriceStr = stock.current_price ? `$${stock.current_price.toFixed(2)}` : 'N/A';
+        const predictedPriceStr = predictedPrice ? `$${predictedPrice.toFixed(2)}` : 'N/A';
+
+        // Safe change calculation
+        let changePercent = 0;
+        let changePercentStr = 'N/A';
+        if (predictedPrice && stock.current_price) {
+            changePercent = ((predictedPrice - stock.current_price) / stock.current_price * 100);
+            changePercentStr = `${changePercent > 0 ? '+' : ''}${changePercent.toFixed(2)}%`;
+        }
+
         const scoreClass = stock.prediction_score >= 60 ? 'high' : stock.prediction_score >= 40 ? 'medium' : 'low';
         const changeClass = changePercent >= 0 ? 'positive' : 'negative';
 
@@ -87,9 +99,9 @@ function displayStocks(timeframe, stocks) {
                     <div class="company-name">${stock.company_name}</div>
                 </td>
                 <td><span class="sector-badge">${stock.sector}</span></td>
-                <td><span class="price">$${stock.current_price.toFixed(2)}</span></td>
-                <td><span class="price">$${predictedPrice.toFixed(2)}</span></td>
-                <td><span class="price-change ${changeClass}">${changePercent > 0 ? '+' : ''}${changePercent}%</span></td>
+                <td><span class="price">${currentPriceStr}</span></td>
+                <td><span class="price">${predictedPriceStr}</span></td>
+                <td><span class="price-change ${changeClass}">${changePercentStr}</span></td>
                 <td><span class="score ${scoreClass}">${stock.prediction_score}</span></td>
                 <td><div class="reasons">${stock.reasons || 'Analysis in progress'}</div></td>
             </tr>
@@ -107,7 +119,19 @@ function displayStocks(timeframe, stocks) {
     stocks.forEach((stock, index) => {
         const prediction = stock[timeframe.replace('tab-', '') + '_term'] || stock.short_term;
         const predictedPrice = prediction.predicted_price;
-        const changePercent = ((predictedPrice - stock.current_price) / stock.current_price * 100).toFixed(2);
+
+        // Safe price formatting
+        const currentPriceStr = stock.current_price ? `$${stock.current_price.toFixed(2)}` : 'N/A';
+        const predictedPriceStr = predictedPrice ? `$${predictedPrice.toFixed(2)}` : 'N/A';
+
+        // Safe change calculation
+        let changePercent = 0;
+        let changePercentStr = 'N/A';
+        if (predictedPrice && stock.current_price) {
+            changePercent = ((predictedPrice - stock.current_price) / stock.current_price * 100);
+            changePercentStr = `${changePercent > 0 ? '+' : ''}${changePercent.toFixed(2)}%`;
+        }
+
         const scoreClass = stock.prediction_score >= 60 ? 'high' : stock.prediction_score >= 40 ? 'medium' : 'low';
         const changeClass = changePercent >= 0 ? 'positive' : 'negative';
 
@@ -122,9 +146,9 @@ function displayStocks(timeframe, stocks) {
                 </div>
                 <div class="stock-card-body">
                     <div><strong>Sector:</strong> ${stock.sector}</div>
-                    <div><strong>Current:</strong> $${stock.current_price.toFixed(2)}</div>
-                    <div><strong>Predicted:</strong> $${predictedPrice.toFixed(2)}</div>
-                    <div class="${changeClass}"><strong>Change:</strong> ${changePercent > 0 ? '+' : ''}${changePercent}%</div>
+                    <div><strong>Current:</strong> ${currentPriceStr}</div>
+                    <div><strong>Predicted:</strong> ${predictedPriceStr}</div>
+                    <div class="${changeClass}"><strong>Change:</strong> ${changePercentStr}</div>
                     <div style="grid-column: 1 / -1;"><strong>Reasons:</strong> ${stock.reasons}</div>
                 </div>
             </div>
@@ -181,6 +205,14 @@ function displayStockDetail(stock) {
     const ai = stock.ai_analysis || {};
     const market = stock.market_context || {};
 
+    // Helper function to safely format price
+    const formatPrice = (price) => {
+        if (price === null || price === undefined || isNaN(price)) {
+            return 'N/A';
+        }
+        return `$${parseFloat(price).toFixed(2)}`;
+    };
+
     let html = `
         <div class="stock-detail">
             <div class="stock-header">
@@ -191,8 +223,8 @@ function displayStockDetail(stock) {
                     <span class="sector-badge" style="background: #ffe7f0; color: #c2185b;">${stock.industry}</span>
                 </div>
                 <div class="current-price">
-                    <div class="label">Current Price</div>
-                    <div class="price">$${stock.current_price.toFixed(2)}</div>
+                    <div class="label">${stock.price_label || 'Current Price'}</div>
+                    <div class="price">${formatPrice(stock.current_price)}</div>
                 </div>
             </div>
 
@@ -212,7 +244,7 @@ function displayStockDetail(stock) {
                 <div class="prediction-card">
                     <h4>Short Term</h4>
                     <div class="timeframe">${stock.short_term.timeframe}</div>
-                    <div class="predicted-price">$${stock.short_term.predicted_price.toFixed(2)}</div>
+                    <div class="predicted-price">${formatPrice(stock.short_term.predicted_price)}</div>
                     <div class="price-change ${getPriceChangeClass(stock.short_term.predicted_price, stock.current_price)}">
                         ${getPriceChange(stock.short_term.predicted_price, stock.current_price)}
                     </div>
@@ -222,7 +254,7 @@ function displayStockDetail(stock) {
                 <div class="prediction-card">
                     <h4>Mid Term</h4>
                     <div class="timeframe">${stock.mid_term.timeframe}</div>
-                    <div class="predicted-price">$${stock.mid_term.predicted_price.toFixed(2)}</div>
+                    <div class="predicted-price">${formatPrice(stock.mid_term.predicted_price)}</div>
                     <div class="price-change ${getPriceChangeClass(stock.mid_term.predicted_price, stock.current_price)}">
                         ${getPriceChange(stock.mid_term.predicted_price, stock.current_price)}
                     </div>
@@ -232,7 +264,7 @@ function displayStockDetail(stock) {
                 <div class="prediction-card">
                     <h4>Long Term</h4>
                     <div class="timeframe">${stock.long_term.timeframe}</div>
-                    <div class="predicted-price">$${stock.long_term.predicted_price.toFixed(2)}</div>
+                    <div class="predicted-price">${formatPrice(stock.long_term.predicted_price)}</div>
                     <div class="price-change ${getPriceChangeClass(stock.long_term.predicted_price, stock.current_price)}">
                         ${getPriceChange(stock.long_term.predicted_price, stock.current_price)}
                     </div>
@@ -299,11 +331,19 @@ function displayStockDetail(stock) {
 
 // Helper functions
 function getPriceChange(predicted, current) {
+    if (predicted === null || predicted === undefined || isNaN(predicted) ||
+        current === null || current === undefined || isNaN(current)) {
+        return 'N/A';
+    }
     const change = ((predicted - current) / current * 100).toFixed(2);
     return `${change > 0 ? '+' : ''}${change}%`;
 }
 
 function getPriceChangeClass(predicted, current) {
+    if (predicted === null || predicted === undefined || isNaN(predicted) ||
+        current === null || current === undefined || isNaN(current)) {
+        return '';
+    }
     return predicted >= current ? 'positive' : 'negative';
 }
 

@@ -109,6 +109,39 @@ Alternatively, you can deploy directly from GitHub:
 3. Vercel will automatically detect the configuration from `vercel.json`
 4. Click "Deploy"
 
+## Testing
+
+### Run Basic Tests
+
+Before deploying, you can run basic functionality tests:
+
+```bash
+python test_basic.py
+```
+
+This will test:
+- ✅ Prediction engine functionality
+- ✅ Analysis engine with market context
+- ✅ Market sentiment analysis
+- ✅ Interest rate analysis
+- ✅ Sector performance tracking
+
+### Manual Testing
+
+1. **Test Stock Search**:
+   - Open the app in your browser
+   - Search for: AAPL, MSFT, TSLA, GOOGL
+   - Verify predictions display without errors
+
+2. **Test Top 20 Stocks**:
+   - Click through Short/Mid/Long term tabs
+   - Verify stocks load and display
+   - Check for JavaScript console errors
+
+3. **Test Market Hours Detection**:
+   - Check if "Current Price" or "Last Close Price" displays correctly
+   - Test during and after market hours
+
 ## Project Structure
 
 ```
@@ -141,12 +174,18 @@ StockPredictor/
 The application uses a comprehensive multi-factor analysis approach:
 
 1. **Technical Analysis**: Price patterns, moving averages, RSI, MACD, Bollinger Bands
-2. **Financial LLM**: AI-powered analysis of market sentiment and news
+2. **Financial LLM**: AI-powered analysis of market sentiment and news (currently simulated)
 3. **Sector Analysis**: Industry and sector performance comparison
 4. **Market Analysis**: Overall market trends and correlations
 5. **Interest Rates**: Federal Reserve policy and yield curve analysis
 6. **Economic Calendar**: GDP, inflation, employment, consumer confidence
 7. **Geopolitical**: Global events and trade policy impact
+
+### 📚 Detailed Documentation
+
+- **[ANALYSIS_METHODOLOGY_DETAILED.md](ANALYSIS_METHODOLOGY_DETAILED.md)** - Complete technical breakdown of all analysis methods, data sources, LLMs, and algorithms
+- **[DATA_SOURCES_SUMMARY.md](DATA_SOURCES_SUMMARY.md)** - Quick reference guide for data sources, costs, and API information
+- **[FIXES_APPLIED.md](FIXES_APPLIED.md)** - Recent bug fixes and improvements
 
 ## Customization
 

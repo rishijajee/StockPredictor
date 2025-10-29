@@ -22,15 +22,21 @@ def index():
 def get_top_stocks():
     """Get top 20 stocks for short, mid, and long term"""
     try:
+        print("Starting top stocks analysis...")
         top_stocks = prediction_engine.get_top_20_stocks()
+        print(f"Analysis complete. Found {len(top_stocks.get('short_term', []))} stocks")
         return jsonify({
             'success': True,
             'data': top_stocks
         })
     except Exception as e:
+        import traceback
+        print(f"Error in get_top_stocks: {e}")
+        traceback.print_exc()
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': str(e),
+            'details': traceback.format_exc()
         }), 500
 
 @app.route('/api/search/<ticker>')
@@ -38,15 +44,27 @@ def search_stock(ticker):
     """Search and analyze a specific stock"""
     try:
         ticker = ticker.upper()
+        print(f"Searching for ticker: {ticker}")
         analysis = analysis_engine.analyze_stock(ticker)
+
+        if analysis and 'error' in analysis:
+            return jsonify({
+                'success': False,
+                'error': analysis['error']
+            }), 404
+
         return jsonify({
             'success': True,
             'data': analysis
         })
     except Exception as e:
+        import traceback
+        print(f"Error in search_stock for {ticker}: {e}")
+        traceback.print_exc()
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': str(e),
+            'details': traceback.format_exc()
         }), 500
 
 @app.route('/api/methodology')

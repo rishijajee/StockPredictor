@@ -181,70 +181,92 @@ class StockPredictionEngine:
 
     def analyze_single_stock(self, ticker):
         """Analyze a single stock"""
-        hist, info = self.get_stock_data(ticker)
-        if hist is None or hist.empty:
+        try:
+            hist, info = self.get_stock_data(ticker)
+            if hist is None or hist.empty:
+                return None
+
+            df = self.calculate_technical_indicators(hist)
+            if df is None:
+                return None
+
+            score, reasons = self.calculate_prediction_score(df, info)
+
+            # Get the last close price (this is what yfinance returns)
+            current_price = float(df['Close'].iloc[-1])
+            price_timestamp = df.index[-1]
+
+            # Determine if this is a close price or intraday price
+            price_label = "Last Close Price"  # Default
+            try:
+                import pytz
+                now = datetime.now(pytz.timezone('America/New_York'))
+
+                # Handle timezone-aware and naive timestamps
+                if price_timestamp.tzinfo is None:
+                    price_date = price_timestamp.tz_localize('UTC').tz_convert('America/New_York')
+                else:
+                    price_date = price_timestamp.tz_convert('America/New_York')
+
+                is_same_day = now.date() == price_date.date()
+
+                # Market hours: 9:30 AM - 4:00 PM ET, Monday-Friday
+                if is_same_day and now.weekday() < 5:  # Monday = 0, Friday = 4
+                    market_open = now.replace(hour=9, minute=30, second=0, microsecond=0)
+                    market_close = now.replace(hour=16, minute=0, second=0, microsecond=0)
+                    if market_open <= now <= market_close:
+                        price_label = "Current Price"
+            except Exception as e:
+                print(f"Timezone handling error: {e}")
+                # Default to "Last Close Price" on error
+
+            # Ensure all predictions return valid values
+            short_predicted = self.predict_price(df, 'short')
+            if short_predicted is None:
+                short_predicted = round(current_price * 1.03, 2)
+
+            mid_predicted = self.predict_price(df, 'mid')
+            if mid_predicted is None:
+                mid_predicted = round(current_price * 1.10, 2)
+
+            long_predicted = self.predict_price(df, 'long')
+            if long_predicted is None:
+                long_predicted = round(current_price * 1.25, 2)
+
+            result = {
+                'ticker': ticker,
+                'company_name': info.get('longName', ticker),
+                'sector': info.get('sector', 'N/A'),
+                'industry': info.get('industry', 'N/A'),
+                'current_price': round(current_price, 2),
+                'price_label': price_label,
+                'price_timestamp': price_timestamp.isoformat(),
+                'short_term': {
+                    'predicted_price': float(short_predicted),
+                    'timeframe': '1-3 months',
+                    'score': score
+                },
+                'mid_term': {
+                    'predicted_price': float(mid_predicted),
+                    'timeframe': '3-12 months',
+                    'score': score
+                },
+                'long_term': {
+                    'predicted_price': float(long_predicted),
+                    'timeframe': '1-3 years',
+                    'score': score
+                },
+                'prediction_score': score,
+                'reasons': reasons,
+                'last_updated': datetime.now().isoformat()
+            }
+
+            return result
+        except Exception as e:
+            print(f"Error analyzing {ticker}: {e}")
+            import traceback
+            traceback.print_exc()
             return None
-
-        df = self.calculate_technical_indicators(hist)
-        if df is None:
-            return None
-
-        score, reasons = self.calculate_prediction_score(df, info)
-
-        # Get the last close price (this is what yfinance returns)
-        current_price = df['Close'].iloc[-1]
-        price_timestamp = df.index[-1]
-
-        # Determine if this is a close price or intraday price
-        # If timestamp is from today and market hours, it's current; otherwise it's previous close
-        from datetime import datetime
-        import pytz
-
-        now = datetime.now(pytz.timezone('America/New_York'))
-        price_date = price_timestamp.tz_localize('America/New_York') if price_timestamp.tzinfo is None else price_timestamp
-        is_same_day = now.date() == price_date.date()
-
-        # Market hours: 9:30 AM - 4:00 PM ET
-        market_open = now.replace(hour=9, minute=30, second=0, microsecond=0)
-        market_close = now.replace(hour=16, minute=0, second=0, microsecond=0)
-        is_market_hours = market_open <= now <= market_close if is_same_day else False
-
-        price_label = "Current Price" if is_market_hours else "Last Close Price"
-
-        # Ensure all predictions return valid values
-        short_predicted = self.predict_price(df, 'short') or round(current_price * 1.03, 2)
-        mid_predicted = self.predict_price(df, 'mid') or round(current_price * 1.10, 2)
-        long_predicted = self.predict_price(df, 'long') or round(current_price * 1.25, 2)
-
-        result = {
-            'ticker': ticker,
-            'company_name': info.get('longName', ticker),
-            'sector': info.get('sector', 'N/A'),
-            'industry': info.get('industry', 'N/A'),
-            'current_price': round(current_price, 2),
-            'price_label': price_label,
-            'price_timestamp': price_timestamp.isoformat(),
-            'short_term': {
-                'predicted_price': short_predicted,
-                'timeframe': '1-3 months',
-                'score': score
-            },
-            'mid_term': {
-                'predicted_price': mid_predicted,
-                'timeframe': '3-12 months',
-                'score': score
-            },
-            'long_term': {
-                'predicted_price': long_predicted,
-                'timeframe': '1-3 years',
-                'score': score
-            },
-            'prediction_score': score,
-            'reasons': reasons,
-            'last_updated': datetime.now().isoformat()
-        }
-
-        return result
 
     def get_top_20_stocks(self):
         """Get top 20 stocks for each timeframe"""

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StockPredictor - AI-Powered Stock Analysis</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📈 StockPredictor</h1>
+            <p class="subtitle">AI-Powered Multi-Factor Stock Analysis</p>
+        </header>
+
+        <!-- Search Section -->
+        <section class="search-section">
+            <h2>Search Stock Analysis</h2>
+            <div class="search-box">
+                <input type="text" id="stockSearch" placeholder="Enter stock ticker (e.g., AAPL, MSFT, TSLA)" />
+                <button onclick="searchStock()">Analyze</button>
+            </div>
+            <div id="searchResults" class="search-results"></div>
+        </section>
+
+        <!-- Tabs for Different Timeframes -->
+        <section class="stocks-section">
+            <h2>Top 20 Stock Predictions</h2>
+            <div class="tabs">
+                <button class="tab-button active" onclick="showTab('short')">Short Term (1-3 months)</button>
+                <button class="tab-button" onclick="showTab('mid')">Mid Term (3-12 months)</button>
+                <button class="tab-button" onclick="showTab('long')">Long Term (1-3 years)</button>
+            </div>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Analyzing stocks... This may take a moment.</p>
+            </div>
+
+            <div id="short" class="tab-content active"></div>
+            <div id="mid" class="tab-content"></div>
+            <div id="long" class="tab-content"></div>
+        </section>
+
+        <!-- Methodology Section -->
+        <section class="methodology-section" id="methodology">
+            <h2>Analysis Methodology</h2>
+            <div id="methodologyContent"></div>
+        </section>
+
+        <footer>
+            <p>Last Updated: <span id="lastUpdate"></span></p>
+            <p class="disclaimer">Disclaimer: This tool is for educational and informational purposes only. Not financial advice.</p>
+        </footer>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

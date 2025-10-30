@@ -185,6 +185,157 @@ def get_methodology():
                 }
             },
             {
+                'name': 'Large Language Models (LLMs) Used in Analysis',
+                'description': 'Detailed breakdown of the specific Large Language Models integrated into the stock analysis pipeline, including algorithmic steps and processing workflow.',
+                'what': 'Large Language Models (LLMs) are advanced artificial intelligence systems trained on massive amounts of text data to understand and generate human-like text. In financial analysis, specialized financial LLMs can interpret market sentiment, analyze news, and provide natural language insights that complement quantitative metrics.',
+                'how': 'Our system integrates financial-specific LLMs through API calls, processes stock data through multi-step algorithms, and combines AI-generated insights with technical and fundamental analysis to produce comprehensive stock recommendations.',
+                'llms_integrated': [
+                    {
+                        'name': 'FinBERT (Financial Bidirectional Encoder Representations from Transformers)',
+                        'provider': 'Hugging Face (ProsusAI/finbert)',
+                        'model_type': 'Transformer-based language model (BERT architecture)',
+                        'specialization': 'Financial sentiment analysis and market text classification',
+                        'training_data': {
+                            'corpus_size': '1.8 million financial documents',
+                            'sources': 'Financial news articles, earnings call transcripts, analyst reports, SEC filings, market commentary',
+                            'training_approach': 'Pre-trained on general text (BERT-base), then fine-tuned on financial domain corpus',
+                            'languages': 'English (financial terminology and jargon)'
+                        },
+                        'capabilities': {
+                            'sentiment_classification': 'Classifies financial text into positive, negative, or neutral sentiment categories',
+                            'confidence_scoring': 'Provides probability scores for each sentiment class (0.0 to 1.0)',
+                            'context_understanding': 'Understands financial context (e.g., "beat earnings" is positive, "missed guidance" is negative)',
+                            'domain_expertise': 'Trained specifically on financial language patterns and market terminology'
+                        },
+                        'technical_specifications': {
+                            'architecture': 'BERT-base (12 transformer layers, 768 hidden units, 12 attention heads)',
+                            'parameters': '110 million trainable parameters',
+                            'input_length': 'Up to 512 tokens (approximately 350-400 words)',
+                            'output': 'Three-class probability distribution: [positive, negative, neutral]',
+                            'accuracy': '97% on financial sentiment classification benchmarks',
+                            'inference_speed': 'Typically 50-200ms per request (after model warm-up)'
+                        },
+                        'algorithm_detailed_steps': {
+                            'step_1_data_preparation': {
+                                'description': 'Construct financial context sentence for the stock being analyzed',
+                                'process': 'Combine ticker symbol, company name, and current analysis metrics into natural language text',
+                                'example': '"Apple Inc (AAPL) stock analysis shows current market performance and technical indicators."',
+                                'code_location': 'analysis_engine.py → get_financial_sentiment() → Line 184'
+                            },
+                            'step_2_api_request': {
+                                'description': 'Send text to Hugging Face FinBERT API endpoint',
+                                'endpoint': 'https://api-inference.huggingface.co/models/ProsusAI/finbert',
+                                'authentication': 'Bearer token (HF_API_KEY environment variable)',
+                                'request_format': 'JSON payload with "inputs" field containing text to analyze',
+                                'timeout': '10 seconds maximum wait time',
+                                'code_location': 'analysis_engine.py → get_financial_sentiment() → Line 192'
+                            },
+                            'step_3_tokenization': {
+                                'description': 'FinBERT tokenizes input text (happens server-side at Hugging Face)',
+                                'process': 'Text is split into subword tokens using WordPiece tokenization',
+                                'special_tokens': '[CLS] added at start, [SEP] at end for BERT input format',
+                                'example': '"Apple" → ["App", "##le"], "stock" → ["stock"]',
+                                'padding': 'Sequences padded/truncated to 512 tokens'
+                            },
+                            'step_4_embedding': {
+                                'description': 'Tokens converted to dense vector representations (happens server-side)',
+                                'embedding_dimension': '768-dimensional vectors for each token',
+                                'embedding_types': 'Token embeddings + Position embeddings + Segment embeddings',
+                                'output': 'Sequence of 768-dimensional vectors representing input text'
+                            },
+                            'step_5_transformer_processing': {
+                                'description': 'FinBERT processes embeddings through 12 transformer layers (happens server-side)',
+                                'attention_mechanism': 'Self-attention allows model to weigh importance of different words in context',
+                                'layer_processing': 'Each layer applies attention, feed-forward networks, and normalization',
+                                'contextual_understanding': 'Model builds rich contextual representations understanding financial terms',
+                                'example': 'Model learns "bullish" has positive sentiment in financial context'
+                            },
+                            'step_6_classification': {
+                                'description': 'Final layer outputs probability distribution over sentiment classes (happens server-side)',
+                                'classification_head': 'Dense layer maps final hidden state to 3 classes',
+                                'softmax_activation': 'Converts logits to probabilities summing to 1.0',
+                                'output_format': '[{"label": "positive", "score": 0.78}, {"label": "negative", "score": 0.15}, {"label": "neutral", "score": 0.07}]'
+                            },
+                            'step_7_response_parsing': {
+                                'description': 'Extract sentiment classification from API response',
+                                'process': 'Parse JSON response, extract highest probability sentiment',
+                                'selection': 'Choose sentiment class with maximum score as primary prediction',
+                                'validation': 'Verify response format and handle errors gracefully',
+                                'code_location': 'analysis_engine.py → get_financial_sentiment() → Line 194-204'
+                            },
+                            'step_8_integration': {
+                                'description': 'Combine FinBERT sentiment with quantitative analysis scores',
+                                'weighting': 'FinBERT sentiment provides qualitative context to quantitative scores',
+                                'synthesis': 'Generate natural language summary incorporating AI sentiment + technical score + fundamental metrics',
+                                'example': '"AAPL shows strong technical indicators. AI Financial Sentiment Analysis indicates a positive outlook (confidence: 78%). Key factors: Price above 50-day MA..."',
+                                'code_location': 'analysis_engine.py → generate_llm_analysis() → Line 217-243'
+                            },
+                            'step_9_fallback_handling': {
+                                'description': 'Handle cases where FinBERT API is unavailable',
+                                'scenarios': 'No API key provided, API timeout, rate limiting, model loading',
+                                'fallback_behavior': 'Switch to rule-based sentiment analysis using quantitative scores',
+                                'user_experience': 'Seamless - users receive analysis regardless of LLM availability',
+                                'code_location': 'analysis_engine.py → get_financial_sentiment() → Line 175-179, 205-215'
+                            }
+                        },
+                        'integration_workflow': {
+                            'trigger': 'Stock analysis request via /api/search/<ticker> endpoint',
+                            'pipeline': [
+                                '1. User searches for stock (e.g., AAPL)',
+                                '2. System fetches historical data and calculates technical indicators',
+                                '3. System calculates fundamental metrics (P/E, margins, ROE)',
+                                '4. System generates quantitative prediction score (0-100)',
+                                '5. System calls get_financial_sentiment() with ticker and company name',
+                                '6. FinBERT API analyzes financial context and returns sentiment',
+                                '7. System calls generate_llm_analysis() to create comprehensive summary',
+                                '8. AI sentiment + quantitative score + sector context = final recommendation',
+                                '9. Natural language summary returned to user with outlook (Strong Buy/Buy/Hold/Cautious/Avoid)'
+                            ]
+                        },
+                        'advantages_over_traditional_methods': {
+                            'contextual_understanding': 'Unlike keyword matching, FinBERT understands context and nuance in financial language',
+                            'domain_specificity': 'Trained on financial text, understands "beat" means exceeding estimates, not physical violence',
+                            'confidence_quantification': 'Provides probability scores, not just binary positive/negative',
+                            'handles_complexity': 'Can process complex sentences with multiple clauses and financial jargon',
+                            'complementary': 'Adds qualitative sentiment layer to quantitative technical/fundamental analysis'
+                        },
+                        'limitations_and_considerations': {
+                            'requires_authentication': 'Free Hugging Face API key required (optional - system works without it)',
+                            'rate_limits': 'Free tier has usage limits (~30,000 characters/month)',
+                            'cold_start_latency': 'First request may take 20-30 seconds while model loads',
+                            'text_based_only': 'Analyzes text context, not actual news articles or earnings transcripts (future enhancement)',
+                            'not_predictive_alone': 'Sentiment is one factor - combined with technical/fundamental for final recommendation'
+                        },
+                        'setup_requirements': {
+                            'api_key': 'HF_API_KEY or HUGGINGFACE_API_KEY environment variable',
+                            'obtaining_key': 'Free account at huggingface.co, generate token at /settings/tokens',
+                            'configuration': 'Set environment variable in deployment platform (Vercel, Heroku, etc.)',
+                            'documentation': 'See FINBERT_SETUP.md for detailed setup instructions'
+                        }
+                    }
+                ],
+                'future_llm_enhancements': {
+                    'planned_models': [
+                        'GPT-4 or Claude for deeper financial analysis and reasoning',
+                        'News sentiment analysis using FinBERT on recent articles',
+                        'Earnings transcript analysis for management tone and guidance',
+                        'SEC filing analysis for risk factor identification'
+                    ],
+                    'api_integrations': [
+                        'NewsAPI or Finnhub for real-time news fetching',
+                        'SEC EDGAR API for regulatory filing analysis',
+                        'Twitter/X API for social sentiment (retail investor mood)',
+                        'Reddit API for WallStreetBets sentiment tracking'
+                    ]
+                },
+                'comparison_to_non_llm_methods': {
+                    'traditional_sentiment': 'Keyword counting (count "good" vs "bad" words) - lacks context understanding',
+                    'finbert_advantage': 'Understands "stock dropped on good news" (profit-taking) vs "stock dropped on bad news" (fundamentals)',
+                    'rule_based_fallback': 'Our system uses rule-based analysis (score thresholds) when LLM unavailable',
+                    'hybrid_approach': 'Best results: LLM sentiment + quantitative scores + sector context'
+                }
+            },
+            {
                 'name': 'Sector & Industry Analysis',
                 'description': 'Evaluates performance of stock sectors relative to overall market to identify sector rotation trends and relative strength.',
                 'what': 'Sector analysis examines the performance of industry groups to understand which areas of the economy are in favor. Sector rotation is the movement of investment dollars from one industry sector to another as investors anticipate different phases of the economic cycle.',

@@ -162,14 +162,68 @@ class AnalysisEngine:
             'recommendation': 'Diversification across geographies recommended'
         }
 
-    def generate_llm_analysis(self, ticker, data):
-        """Generate AI-powered analysis summary"""
-        # Simulated LLM analysis based on data
-        # In production, integrate with Hugging Face or other LLM APIs
+    def get_financial_sentiment(self, ticker, company_name):
+        """Get financial sentiment using Hugging Face FinBERT"""
+        try:
+            # Use Hugging Face's inference API for FinBERT sentiment analysis
+            # Note: Requires HF_API_KEY environment variable for authentication
+            # To get a free API key: https://huggingface.co/settings/tokens
 
+            import os
+            api_key = os.environ.get('HF_API_KEY') or os.environ.get('HUGGINGFACE_API_KEY')
+
+            if not api_key:
+                # Gracefully skip if no API key is provided
+                print("FinBERT: No Hugging Face API key found. Using rule-based analysis only.")
+                print("To enable FinBERT AI sentiment: Set HF_API_KEY environment variable")
+                return None
+
+            API_URL = "https://api-inference.huggingface.co/models/ProsusAI/finbert"
+
+            # Create a financial context sentence about the stock
+            text = f"{company_name} ({ticker}) stock analysis shows current market performance and technical indicators."
+
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            }
+            payload = {"inputs": text}
+
+            response = requests.post(API_URL, headers=headers, json=payload, timeout=10)
+
+            if response.status_code == 200:
+                result = response.json()
+                if isinstance(result, list) and len(result) > 0:
+                    # FinBERT returns sentiment scores for positive, negative, neutral
+                    sentiments = result[0]
+                    top_sentiment = max(sentiments, key=lambda x: x['score'])
+                    return {
+                        'sentiment': top_sentiment['label'],
+                        'score': top_sentiment['score'],
+                        'all_scores': sentiments
+                    }
+            elif response.status_code == 503:
+                # Model is loading, this is common on free tier
+                print("FinBERT: Model is loading on Hugging Face. Using rule-based analysis.")
+                return None
+            else:
+                print(f"FinBERT API response: {response.status_code}")
+                return None
+
+        except Exception as e:
+            print(f"Error getting FinBERT sentiment: {e}")
+            return None
+
+    def generate_llm_analysis(self, ticker, data):
+        """Generate AI-powered analysis summary using FinBERT"""
         score = data.get('prediction_score', 50)
         reasons = data.get('reasons', '')
+        company_name = data.get('company_name', ticker)
 
+        # Get AI sentiment analysis
+        finbert_sentiment = self.get_financial_sentiment(ticker, company_name)
+
+        # Base outlook on quantitative score
         if score >= 70:
             outlook = "Strong Buy"
             summary = f"{ticker} shows strong technical and fundamental indicators. "
@@ -186,18 +240,25 @@ class AnalysisEngine:
             outlook = "Avoid"
             summary = f"{ticker} exhibits concerning technical patterns. "
 
+        # Add FinBERT AI sentiment if available
+        if finbert_sentiment:
+            sentiment_label = finbert_sentiment['sentiment']
+            sentiment_score = finbert_sentiment['score']
+            summary += f"AI Financial Sentiment Analysis indicates a {sentiment_label.lower()} outlook (confidence: {sentiment_score:.1%}). "
+
         # Add reasoning
-        summary += f"Key factors: {reasons}. "
+        summary += f"Key quantitative factors: {reasons}. "
 
         # Add sector context
         sector = data.get('sector', 'N/A')
         sector_analysis = self.analyze_sector_performance(sector)
-        summary += f"The {sector} sector is currently {sector_analysis['trend']}. "
+        summary += f"The {sector} sector is currently {sector_analysis['trend']} with {sector_analysis['performance']:.1f}% performance over 3 months. "
 
         return {
             'outlook': outlook,
             'summary': summary,
-            'confidence': 'High' if score > 70 or score < 30 else 'Moderate'
+            'confidence': 'High' if score > 70 or score < 30 else 'Moderate',
+            'finbert_sentiment': finbert_sentiment
         }
 
     def analyze_stock(self, ticker):

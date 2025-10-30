@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import warnings
+import time
 warnings.filterwarnings('ignore')
 
 class StockPredictionEngine:
@@ -19,16 +20,54 @@ class StockPredictionEngine:
             'UNP', 'RTX', 'BMY', 'HON', 'QCOM', 'LOW', 'IBM', 'SBUX', 'AMT'
         ]
 
-    def get_stock_data(self, ticker, period='1y'):
-        """Fetch stock data using yfinance"""
-        try:
-            stock = yf.Ticker(ticker)
-            hist = stock.history(period=period)
-            info = stock.info
-            return hist, info
-        except Exception as e:
-            print(f"Error fetching {ticker}: {e}")
-            return None, None
+    def get_stock_data(self, ticker, period='1y', max_retries=3):
+        """Fetch stock data using yfinance with retry logic"""
+        for attempt in range(max_retries):
+            try:
+                # Don't pass session - yfinance 0.2.66+ uses curl_cffi internally
+                stock = yf.Ticker(ticker)
+
+                # Add small delay between requests to avoid rate limiting
+                time.sleep(0.5)
+
+                hist = stock.history(period=period)
+
+                # Check if we got valid data
+                if hist is None or hist.empty:
+                    print(f"No historical data for {ticker}, attempt {attempt + 1}/{max_retries}")
+                    if attempt < max_retries - 1:
+                        time.sleep(2)  # Wait before retry
+                        continue
+                    return None, None
+
+                # Get info with error handling
+                try:
+                    info = stock.info
+                    if not info or len(info) < 5:  # Minimal valid info should have more than 5 keys
+                        print(f"Limited info for {ticker}, using defaults")
+                        info = {
+                            'longName': ticker,
+                            'sector': 'N/A',
+                            'industry': 'N/A'
+                        }
+                except Exception as e:
+                    print(f"Error getting info for {ticker}: {e}")
+                    info = {
+                        'longName': ticker,
+                        'sector': 'N/A',
+                        'industry': 'N/A'
+                    }
+
+                return hist, info
+
+            except Exception as e:
+                print(f"Error fetching {ticker} (attempt {attempt + 1}/{max_retries}): {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(2)  # Wait before retry
+                else:
+                    return None, None
+
+        return None, None
 
     def calculate_technical_indicators(self, df):
         """Calculate various technical indicators"""
@@ -293,8 +332,8 @@ class StockPredictionEngine:
         """Get top 20 stocks for each timeframe"""
         all_stocks = []
 
-        # Use ThreadPoolExecutor for parallel processing
-        with ThreadPoolExecutor(max_workers=10) as executor:
+        # Use ThreadPoolExecutor for parallel processing with reduced workers to avoid rate limiting
+        with ThreadPoolExecutor(max_workers=3) as executor:
             futures = {executor.submit(self.analyze_single_stock, ticker): ticker
                       for ticker in self.stock_universe}
 
@@ -302,6 +341,8 @@ class StockPredictionEngine:
                 result = future.result()
                 if result:
                     all_stocks.append(result)
+                # Small delay between processing results
+                time.sleep(0.3)
 
         # Sort by prediction score and get top 20
         all_stocks.sort(key=lambda x: x['prediction_score'], reverse=True)

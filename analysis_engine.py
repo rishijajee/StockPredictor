@@ -4,6 +4,7 @@ import numpy as np
 from datetime import datetime, timedelta
 import requests
 import json
+import time
 from prediction_engine import StockPredictionEngine
 
 class AnalysisEngine:
@@ -14,8 +15,12 @@ class AnalysisEngine:
         """Analyze overall market sentiment"""
         try:
             # Get major indices
+            time.sleep(0.5)  # Rate limiting
             spy = yf.Ticker("SPY")
             spy_hist = spy.history(period="1mo")
+
+            if spy_hist is None or spy_hist.empty:
+                raise Exception("No SPY data")
 
             # Calculate market trend
             current = spy_hist['Close'].iloc[-1]
@@ -34,7 +39,8 @@ class AnalysisEngine:
                 'spy_change': round(change, 2),
                 'description': f"Market has moved {change:.2f}% in the last month"
             }
-        except:
+        except Exception as e:
+            print(f"Error getting market sentiment: {e}")
             return {
                 'sentiment': 'Neutral',
                 'spy_change': 0,
@@ -59,8 +65,12 @@ class AnalysisEngine:
 
         try:
             etf = sector_etfs.get(sector, 'SPY')
+            time.sleep(0.5)  # Rate limiting
             ticker = yf.Ticker(etf)
             hist = ticker.history(period='3mo')
+
+            if hist is None or hist.empty:
+                raise Exception(f"No data for {etf}")
 
             current = hist['Close'].iloc[-1]
             three_months_ago = hist['Close'].iloc[0]
@@ -72,7 +82,8 @@ class AnalysisEngine:
                 'trend': 'Outperforming' if change > 5 else 'Underperforming' if change < -5 else 'In-line',
                 'description': f"{sector} sector has moved {change:.2f}% in the last 3 months"
             }
-        except:
+        except Exception as e:
+            print(f"Error analyzing sector {sector}: {e}")
             return {
                 'sector': sector,
                 'performance': 0,
@@ -84,8 +95,12 @@ class AnalysisEngine:
         """Analyze interest rate environment"""
         try:
             # Get 10-year treasury yield as proxy
+            time.sleep(0.5)  # Rate limiting
             tnx = yf.Ticker("^TNX")
             tnx_hist = tnx.history(period="3mo")
+
+            if tnx_hist is None or tnx_hist.empty:
+                raise Exception("No TNX data")
 
             current_yield = tnx_hist['Close'].iloc[-1]
             three_months_ago = tnx_hist['Close'].iloc[0]
@@ -104,7 +119,8 @@ class AnalysisEngine:
                 'impact': impact,
                 'description': f"10-year yield at {current_yield:.2f}%, {change:+.2f}% change in 3 months"
             }
-        except:
+        except Exception as e:
+            print(f"Error analyzing interest rates: {e}")
             return {
                 'current_yield': 4.0,
                 'change_3m': 0,

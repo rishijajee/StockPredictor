@@ -376,16 +376,40 @@ async function loadMethodology() {
             </div>
 
             <div class="timeframes">
-                <h4>Investment Timeframes</h4>
+                <h4>Investment Timeframes & Prediction Algorithms</h4>
                 <div class="timeframe-item">
-                    <strong>Short Term:</strong> ${data.timeframes.short_term}
+                    <strong>Short Term (${data.prediction_algorithms.short_term.timeframe}):</strong><br>
+                    ${data.prediction_algorithms.short_term.methodology}
                 </div>
                 <div class="timeframe-item">
-                    <strong>Mid Term:</strong> ${data.timeframes.mid_term}
+                    <strong>Mid Term (${data.prediction_algorithms.mid_term.timeframe}):</strong><br>
+                    ${data.prediction_algorithms.mid_term.methodology}
                 </div>
                 <div class="timeframe-item">
-                    <strong>Long Term:</strong> ${data.timeframes.long_term}
+                    <strong>Long Term (${data.prediction_algorithms.long_term.timeframe}):</strong><br>
+                    ${data.prediction_algorithms.long_term.methodology}
                 </div>
+            </div>
+
+            <div class="scoring-system">
+                <h4>Scoring System</h4>
+                <p><strong>Total Range:</strong> ${data.scoring_system.total_range}</p>
+                <p><strong>Baseline:</strong> ${data.scoring_system.baseline} points</p>
+                <p><strong>Technical Analysis:</strong> Up to ${data.scoring_system.technical_points} points</p>
+                <p><strong>Fundamental Analysis:</strong> Up to ${data.scoring_system.fundamental_points} points</p>
+                <div style="margin-top: 10px;">
+                    <strong>Score Interpretation:</strong><br>
+                    ${Object.entries(data.scoring_system.interpretation).map(([range, desc]) =>
+                        `<div style="margin: 5px 0;"><strong>${range}:</strong> ${desc}</div>`
+                    ).join('')}
+                </div>
+            </div>
+
+            <div class="data-sources">
+                <h4>Data Sources</h4>
+                <p><strong>Primary:</strong> ${data.data_sources.primary}</p>
+                <p><strong>Data Types:</strong> ${data.data_sources.data_types}</p>
+                <p><strong>Update Frequency:</strong> ${data.data_sources.update_frequency}</p>
             </div>
 
             <div class="disclaimer-box">

@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StockScore - AI LLM Stock Analysis</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .llm-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .llm-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        .llm-icon {
+            font-size: 32px;
+            margin-right: 15px;
+        }
+        .llm-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+        }
+        .llm-subtitle {
+            font-size: 14px;
+            color: #666;
+        }
+        .sentiment-result {
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+        .sentiment-positive {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+        }
+        .sentiment-negative {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+        }
+        .sentiment-neutral {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+        }
+        .methodology-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            border-radius: 12px;
+            margin-top: 40px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🤖 StockScore</h1>
+            <p class="subtitle">Real-Time AI LLM Stock Analysis</p>
+            <div style="text-align: center; margin: 15px 0;">
+                <a href="/" style="color: #667eea; text-decoration: none; font-weight: 500;">← Back to StockPredictor</a>
+            </div>
+        </header>
+
+        <!-- Search Section -->
+        <section class="search-section">
+            <h2>Real-Time Stock Analysis</h2>
+            <div class="search-box">
+                <input type="text" id="stockScoreSearch" placeholder="Enter stock ticker (e.g., AAPL, TSLA, NVDA)" />
+                <button onclick="analyzeStock()">Analyze with AI</button>
+            </div>
+            <div id="loadingIndicator" style="display: none; text-align: center; padding: 20px;">
+                <div class="spinner"></div>
+                <p>Running AI analysis... This may take 30-60 seconds</p>
+            </div>
+            <div id="stockScoreResults"></div>
+        </section>
+
+        <!-- Methodology Section -->
+        <section class="methodology-section">
+            <h2 style="color: white; margin-bottom: 20px;">🔬 What We're Doing & How</h2>
+
+            <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                <h3 style="color: white;">Overview</h3>
+                <p style="line-height: 1.8;">
+                    StockScore uses three cutting-edge Large Language Models (LLMs) specifically trained on financial data to provide comprehensive, real-time stock analysis. Each LLM specializes in a different aspect of financial analysis, combining to give you a 360-degree view of any stock.
+                </p>
+            </div>
+
+            <div style="background: white; color: #333; padding: 25px; border-radius: 10px; margin-bottom: 20px;">
+                <h3 style="color: #667eea;">1️⃣ FinGPT - Sentiment Analysis</h3>
+                <p><strong>What:</strong> FinGPT is a GPT-style language model fine-tuned specifically on financial news, social media, and market commentary to understand market sentiment.</p>
+                <p><strong>LLM Used:</strong> FinGPT (Hugging Face: oliverwang/finGPT or similar financial sentiment model)</p>
+                <p><strong>How It Works:</strong></p>
+                <ul style="line-height: 1.8; margin-left: 20px;">
+                    <li>Fetches recent news headlines and social media mentions about the stock</li>
+                    <li>Processes text through FinGPT's transformer architecture (GPT-style, ~100M+ parameters)</li>
+                    <li>Analyzes linguistic patterns, context, and financial terminology</li>
+                    <li>Outputs sentiment classification: Positive, Negative, or Neutral with confidence scores</li>
+                    <li>Considers market-specific context (e.g., "missed earnings" is negative, "beat estimates" is positive)</li>
+                </ul>
+                <p><strong>Output:</strong> Overall market sentiment toward the stock with detailed reasoning</p>
+            </div>
+
+            <div style="background: white; color: #333; padding: 25px; border-radius: 10px; margin-bottom: 20px;">
+                <h3 style="color: #667eea;">2️⃣ FinBERT - News Classification</h3>
+                <p><strong>What:</strong> FinBERT is a BERT-based model trained on 1.8 million financial documents to classify news and events into categories and assess their impact.</p>
+                <p><strong>LLM Used:</strong> FinBERT (Hugging Face: ProsusAI/finbert)</p>
+                <p><strong>How It Works:</strong></p>
+                <ul style="line-height: 1.8; margin-left: 20px;">
+                    <li>Tokenizes news articles and financial text using WordPiece tokenization</li>
+                    <li>Processes through 12 transformer layers with self-attention mechanisms</li>
+                    <li>Each layer learns different aspects: syntax, semantics, financial context</li>
+                    <li>Classification head outputs probabilities for positive/negative/neutral sentiment</li>
+                    <li>Achieves 97% accuracy on financial sentiment classification benchmarks</li>
+                </ul>
+                <p><strong>Output:</strong> News classification with impact assessment on stock price</p>
+            </div>
+
+            <div style="background: white; color: #333; padding: 25px; border-radius: 10px; margin-bottom: 20px;">
+                <h3 style="color: #667eea;">3️⃣ FinLLM - Investment Decision Making</h3>
+                <p><strong>What:</strong> FinLLM is an instruction-tuned large language model designed to synthesize financial data and provide actionable investment recommendations.</p>
+                <p><strong>LLM Used:</strong> Financial LLM (e.g., BloombergGPT-style model or FinMA on Hugging Face)</p>
+                <p><strong>How It Works:</strong></p>
+                <ul style="line-height: 1.8; margin-left: 20px;">
+                    <li>Aggregates sentiment analysis, news classification, and technical indicators</li>
+                    <li>Processes through instruction-tuned transformer (trained on investment analysis tasks)</li>
+                    <li>Applies financial reasoning frameworks: risk assessment, valuation, market timing</li>
+                    <li>Considers multiple factors: fundamentals, technicals, market sentiment, macro conditions</li>
+                    <li>Generates natural language investment recommendation with reasoning</li>
+                </ul>
+                <p><strong>Output:</strong> Buy/Hold/Sell recommendation with detailed rationale and risk factors</p>
+            </div>
+
+            <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 8px;">
+                <h3 style="color: white;">Integration Workflow</h3>
+                <ol style="line-height: 2; margin-left: 20px;">
+                    <li><strong>User Input:</strong> Enter stock ticker (e.g., AAPL)</li>
+                    <li><strong>Data Fetching:</strong> System retrieves real-time stock data, news, and social sentiment</li>
+                    <li><strong>Parallel LLM Processing:</strong>
+                        <ul style="margin-left: 20px; margin-top: 10px;">
+                            <li>FinGPT analyzes overall market sentiment</li>
+                            <li>FinBERT classifies and scores recent news</li>
+                            <li>FinLLM synthesizes all data for investment decision</li>
+                        </ul>
+                    </li>
+                    <li><strong>Result Aggregation:</strong> Combine outputs from all three LLMs</li>
+                    <li><strong>Display:</strong> Present comprehensive analysis with visual indicators</li>
+                </ol>
+            </div>
+
+            <div style="background: #fff3cd; color: #856404; padding: 20px; border-radius: 8px; margin-top: 20px;">
+                <strong>⚠️ Setup Required:</strong>
+                <p style="margin-top: 10px;">
+                    To enable full LLM functionality, set the <code style="background: rgba(0,0,0,0.1); padding: 2px 6px; border-radius: 3px;">HF_API_KEY</code> environment variable with your Hugging Face API token.
+                    Without it, the system will use rule-based analysis. Get your free token at <a href="https://huggingface.co/settings/tokens" target="_blank" style="color: #667eea;">huggingface.co/settings/tokens</a>
+                </p>
+            </div>
+        </section>
+
+        <footer>
+            <p class="disclaimer">Disclaimer: AI-generated analysis is for educational purposes only. Not financial advice. Always do your own research.</p>
+        </footer>
+    </div>
+
+    <script src="/static/js/stockscore.js"></script>
+</body>
+</html>

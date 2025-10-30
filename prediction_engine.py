@@ -196,7 +196,7 @@ class StockPredictionEngine:
             current_price = float(df['Close'].iloc[-1])
             price_timestamp = df.index[-1]
 
-            # Determine if this is a close price or intraday price
+            # Determine if this is a close price, intraday price, or pre/post-market
             price_label = "Last Close Price"  # Default
             try:
                 import pytz
@@ -209,13 +209,34 @@ class StockPredictionEngine:
                     price_date = price_timestamp.tz_convert('America/New_York')
 
                 is_same_day = now.date() == price_date.date()
+                is_weekday = now.weekday() < 5  # Monday = 0, Friday = 4
 
-                # Market hours: 9:30 AM - 4:00 PM ET, Monday-Friday
-                if is_same_day and now.weekday() < 5:  # Monday = 0, Friday = 4
+                if is_weekday:
+                    # Define market hours (all times in ET)
+                    pre_market_start = now.replace(hour=4, minute=0, second=0, microsecond=0)
                     market_open = now.replace(hour=9, minute=30, second=0, microsecond=0)
                     market_close = now.replace(hour=16, minute=0, second=0, microsecond=0)
+                    post_market_end = now.replace(hour=20, minute=0, second=0, microsecond=0)
+
+                    # Determine the appropriate label based on current time
                     if market_open <= now <= market_close:
-                        price_label = "Current Price"
+                        # During regular market hours
+                        if is_same_day:
+                            price_label = "Current Price"
+                        else:
+                            price_label = "Previous Close Price"
+                    elif pre_market_start <= now < market_open:
+                        # Pre-market hours (4:00 AM - 9:30 AM ET)
+                        price_label = "Previous Close Price (Pre-Market)"
+                    elif market_close < now <= post_market_end:
+                        # Post-market hours (4:00 PM - 8:00 PM ET)
+                        price_label = "Previous Close Price (Post-Market)"
+                    else:
+                        # After hours (8:00 PM - 4:00 AM ET)
+                        price_label = "Previous Close Price"
+                else:
+                    # Weekend
+                    price_label = "Last Close Price (Weekend)"
             except Exception as e:
                 print(f"Timezone handling error: {e}")
                 # Default to "Last Close Price" on error

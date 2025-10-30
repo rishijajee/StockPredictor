@@ -375,6 +375,116 @@ async function loadMethodology() {
         html += `
             </div>
 
+            <div class="llm-section" style="margin-top: 40px; padding: 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; color: white;">
+                <h3 style="margin-bottom: 20px; font-size: 24px;">🤖 Large Language Models (LLMs) Used in Analysis</h3>
+        `;
+
+        // Find and display LLM component details
+        const llmComponent = data.components.find(c => c.name && c.name.includes('LLM'));
+        if (llmComponent && llmComponent.llms_integrated) {
+            html += `
+                <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                    <p style="font-size: 16px; line-height: 1.8; margin-bottom: 15px;"><strong>What:</strong> ${llmComponent.what}</p>
+                    <p style="font-size: 16px; line-height: 1.8;"><strong>How:</strong> ${llmComponent.how}</p>
+                </div>
+            `;
+
+            llmComponent.llms_integrated.forEach(llm => {
+                html += `
+                    <div style="background: white; color: #333; padding: 25px; border-radius: 10px; margin-bottom: 20px;">
+                        <h4 style="color: #667eea; font-size: 22px; margin-bottom: 15px;">📊 ${llm.name}</h4>
+                        <div style="margin-bottom: 20px;">
+                            <p><strong>Provider:</strong> ${llm.provider}</p>
+                            <p><strong>Model Type:</strong> ${llm.model_type}</p>
+                            <p><strong>Specialization:</strong> ${llm.specialization}</p>
+                        </div>
+
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                            <h5 style="color: #667eea; margin-bottom: 10px;">Training Data</h5>
+                            <p><strong>Corpus Size:</strong> ${llm.training_data.corpus_size}</p>
+                            <p><strong>Sources:</strong> ${llm.training_data.sources}</p>
+                            <p><strong>Approach:</strong> ${llm.training_data.training_approach}</p>
+                        </div>
+
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                            <h5 style="color: #667eea; margin-bottom: 10px;">Technical Specifications</h5>
+                            <p><strong>Architecture:</strong> ${llm.technical_specifications.architecture}</p>
+                            <p><strong>Parameters:</strong> ${llm.technical_specifications.parameters}</p>
+                            <p><strong>Accuracy:</strong> ${llm.technical_specifications.accuracy}</p>
+                            <p><strong>Inference Speed:</strong> ${llm.technical_specifications.inference_speed}</p>
+                        </div>
+
+                        <div style="background: #fff3cd; padding: 20px; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 20px;">
+                            <h5 style="color: #856404; margin-bottom: 15px;">🔄 Detailed Algorithm Steps</h5>
+                `;
+
+                // Render all 9 steps
+                const steps = llm.algorithm_detailed_steps;
+                Object.keys(steps).forEach((stepKey, index) => {
+                    const step = steps[stepKey];
+                    html += `
+                        <div style="background: white; padding: 15px; margin-bottom: 15px; border-radius: 6px; border-left: 3px solid #667eea;">
+                            <h6 style="color: #667eea; margin-bottom: 8px;">Step ${index + 1}: ${stepKey.replace(/_/g, ' ').replace('step ' + (index + 1) + ' ', '').toUpperCase()}</h6>
+                            <p style="margin-bottom: 8px;"><strong>Description:</strong> ${step.description}</p>
+                    `;
+
+                    if (step.process) html += `<p style="margin-bottom: 8px;"><strong>Process:</strong> ${step.process}</p>`;
+                    if (step.endpoint) html += `<p style="margin-bottom: 8px;"><strong>Endpoint:</strong> <code style="background: #f1f1f1; padding: 2px 6px; border-radius: 3px;">${step.endpoint}</code></p>`;
+                    if (step.example) html += `<p style="margin-bottom: 8px;"><strong>Example:</strong> <em>${step.example}</em></p>`;
+                    if (step.code_location) html += `<p style="font-size: 13px; color: #666;"><strong>Code:</strong> ${step.code_location}</p>`;
+                    if (step.attention_mechanism) html += `<p style="margin-bottom: 8px;"><strong>Attention:</strong> ${step.attention_mechanism}</p>`;
+                    if (step.output_format) html += `<p style="margin-bottom: 8px;"><strong>Output:</strong> <code style="background: #f1f1f1; padding: 2px 6px; border-radius: 3px; font-size: 12px;">${step.output_format}</code></p>`;
+                    if (step.scenarios) html += `<p style="margin-bottom: 8px;"><strong>Scenarios:</strong> ${step.scenarios}</p>`;
+                    if (step.fallback_behavior) html += `<p style="margin-bottom: 8px;"><strong>Fallback:</strong> ${step.fallback_behavior}</p>`;
+
+                    html += `</div>`;
+                });
+
+                html += `
+                        </div>
+
+                        <div style="background: #d1ecf1; padding: 15px; border-radius: 8px; border-left: 4px solid #0c5460; margin-bottom: 15px;">
+                            <h5 style="color: #0c5460; margin-bottom: 10px;">Integration Workflow</h5>
+                            <ol style="padding-left: 20px;">
+                `;
+
+                llm.integration_workflow.pipeline.forEach(step => {
+                    html += `<li style="margin-bottom: 5px;">${step}</li>`;
+                });
+
+                html += `
+                            </ol>
+                        </div>
+
+                        <div style="background: #d4edda; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                            <h5 style="color: #155724; margin-bottom: 10px;">✅ Advantages Over Traditional Methods</h5>
+                            ${Object.entries(llm.advantages_over_traditional_methods).map(([key, value]) =>
+                                `<p style="margin-bottom: 8px;"><strong>${key.replace(/_/g, ' ')}:</strong> ${value}</p>`
+                            ).join('')}
+                        </div>
+
+                        <div style="background: #f8d7da; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                            <h5 style="color: #721c24; margin-bottom: 10px;">⚠️ Limitations & Considerations</h5>
+                            ${Object.entries(llm.limitations_and_considerations).map(([key, value]) =>
+                                `<p style="margin-bottom: 8px;"><strong>${key.replace(/_/g, ' ')}:</strong> ${value}</p>`
+                            ).join('')}
+                        </div>
+
+                        <div style="background: #e7f3ff; padding: 15px; border-radius: 8px;">
+                            <h5 style="color: #004085; margin-bottom: 10px;">🔧 Setup Requirements (Optional)</h5>
+                            <p><strong>API Key:</strong> ${llm.setup_requirements.api_key}</p>
+                            <p><strong>How to Obtain:</strong> ${llm.setup_requirements.obtaining_key}</p>
+                            <p><strong>Configuration:</strong> ${llm.setup_requirements.configuration}</p>
+                            <p><strong>Documentation:</strong> ${llm.setup_requirements.documentation}</p>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        html += `
+            </div>
+
             <div class="timeframes">
                 <h4>Investment Timeframes & Prediction Algorithms</h4>
                 <div class="timeframe-item">

@@ -108,9 +108,11 @@ class StockPredictionEngine:
     def calculate_prediction_score(self, df, info):
         """Calculate a prediction score based on multiple factors"""
         if df is None or len(df) < 50:
-            return 0, "Insufficient data"
+            return 0, "Insufficient data", {'baseline': 0, 'technical': 0, 'fundamental': 0, 'total': 0}
 
-        score = 50  # Start neutral
+        baseline_score = 50  # Start neutral
+        technical_points = 0
+        fundamental_points = 0
         reasons = []
 
         latest = df.iloc[-1]
@@ -118,34 +120,34 @@ class StockPredictionEngine:
         # Technical Analysis (30 points)
         # Trend following
         if latest['Close'] > latest['SMA_50']:
-            score += 5
+            technical_points += 5
             reasons.append("Price above 50-day MA")
         if latest['Close'] > latest['SMA_200']:
-            score += 5
+            technical_points += 5
             reasons.append("Price above 200-day MA")
         if latest['SMA_50'] > latest['SMA_200']:
-            score += 5
+            technical_points += 5
             reasons.append("Golden cross formation")
 
         # Momentum
         if 30 <= latest['RSI'] <= 70:
-            score += 5
+            technical_points += 5
             reasons.append(f"Healthy RSI ({latest['RSI']:.1f})")
         elif latest['RSI'] < 30:
-            score += 3
+            technical_points += 3
             reasons.append("Oversold condition (potential bounce)")
         elif latest['RSI'] > 70:
-            score -= 3
+            technical_points -= 3
             reasons.append("Overbought condition")
 
         # MACD
         if latest['MACD'] > latest['Signal_Line']:
-            score += 5
+            technical_points += 5
             reasons.append("Bullish MACD crossover")
 
         # Volume
         if latest['Volume'] > latest['Volume_SMA']:
-            score += 5
+            technical_points += 5
             reasons.append("Above-average volume")
 
         # Fundamental factors (20 points)
@@ -153,25 +155,40 @@ class StockPredictionEngine:
             if 'forwardPE' in info and info['forwardPE'] is not None:
                 pe = info['forwardPE']
                 if 10 <= pe <= 25:
-                    score += 10
+                    fundamental_points += 10
                     reasons.append(f"Reasonable P/E ratio ({pe:.1f})")
                 elif pe < 10:
-                    score += 5
+                    fundamental_points += 5
                     reasons.append(f"Low P/E ratio ({pe:.1f})")
 
             if 'profitMargins' in info and info['profitMargins'] is not None:
                 if info['profitMargins'] > 0.15:
-                    score += 5
+                    fundamental_points += 5
                     reasons.append(f"Strong profit margins ({info['profitMargins']*100:.1f}%)")
 
             if 'returnOnEquity' in info and info['returnOnEquity'] is not None:
                 if info['returnOnEquity'] > 0.15:
-                    score += 5
+                    fundamental_points += 5
                     reasons.append(f"High ROE ({info['returnOnEquity']*100:.1f}%)")
         except:
             pass
 
-        return min(max(score, 0), 100), " | ".join(reasons[:5])  # Limit to top 5 reasons
+        # Calculate total score
+        total_score = baseline_score + technical_points + fundamental_points
+        final_score = min(max(total_score, 0), 100)
+
+        # Calculate breakdown
+        breakdown = {
+            'baseline': baseline_score,
+            'technical': technical_points,
+            'fundamental': fundamental_points,
+            'total': final_score,
+            'baseline_pct': round((baseline_score / final_score * 100) if final_score > 0 else 0, 1),
+            'technical_pct': round((technical_points / final_score * 100) if final_score > 0 else 0, 1),
+            'fundamental_pct': round((fundamental_points / final_score * 100) if final_score > 0 else 0, 1)
+        }
+
+        return final_score, " | ".join(reasons[:5]), breakdown  # Limit to top 5 reasons
 
     def predict_price(self, df, timeframe='short'):
         """Predict future price based on timeframe"""
@@ -229,7 +246,7 @@ class StockPredictionEngine:
             if df is None:
                 return None
 
-            score, reasons = self.calculate_prediction_score(df, info)
+            score, reasons, breakdown = self.calculate_prediction_score(df, info)
 
             # Get the last close price (this is what yfinance returns)
             current_price = float(df['Close'].iloc[-1])
@@ -317,6 +334,7 @@ class StockPredictionEngine:
                     'score': score
                 },
                 'prediction_score': score,
+                'score_breakdown': breakdown,
                 'reasons': reasons,
                 'last_updated': datetime.now().isoformat()
             }

@@ -323,6 +323,78 @@ function displayStockDetail(stock) {
                     ${stock.reasons}
                 </p>
             </div>
+
+            <div class="analysis-section">
+                <h4>📊 Score Breakdown (Total: ${stock.prediction_score})</h4>
+                <div style="background: white; padding: 20px; border-radius: 8px;">
+    `;
+
+    if (stock.score_breakdown) {
+        const breakdown = stock.score_breakdown;
+        html += `
+                    <div style="margin-bottom: 20px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <div>
+                                <strong>Baseline Score:</strong> ${breakdown.baseline} points
+                            </div>
+                            <div style="background: #e7f3ff; padding: 5px 15px; border-radius: 20px; font-weight: bold;">
+                                ${breakdown.baseline_pct}%
+                            </div>
+                        </div>
+                        <div style="background: #e7f3ff; height: 30px; border-radius: 5px; overflow: hidden;">
+                            <div style="background: #0066cc; height: 100%; width: ${breakdown.baseline_pct}%;"></div>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 20px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <div>
+                                <strong>Technical Analysis:</strong> ${breakdown.technical > 0 ? '+' : ''}${breakdown.technical} points
+                            </div>
+                            <div style="background: #d4edda; padding: 5px 15px; border-radius: 20px; font-weight: bold;">
+                                ${breakdown.technical_pct}%
+                            </div>
+                        </div>
+                        <div style="background: #d4edda; height: 30px; border-radius: 5px; overflow: hidden;">
+                            <div style="background: #28a745; height: 100%; width: ${breakdown.technical_pct}%;"></div>
+                        </div>
+                        <p style="font-size: 13px; color: #666; margin-top: 5px;">
+                            SMA trends, RSI momentum, MACD signals, volume analysis
+                        </p>
+                    </div>
+
+                    <div style="margin-bottom: 20px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <div>
+                                <strong>Fundamental Analysis:</strong> ${breakdown.fundamental > 0 ? '+' : ''}${breakdown.fundamental} points
+                            </div>
+                            <div style="background: #fff3cd; padding: 5px 15px; border-radius: 20px; font-weight: bold;">
+                                ${breakdown.fundamental_pct}%
+                            </div>
+                        </div>
+                        <div style="background: #fff3cd; height: 30px; border-radius: 5px; overflow: hidden;">
+                            <div style="background: #ffc107; height: 100%; width: ${breakdown.fundamental_pct}%;"></div>
+                        </div>
+                        <p style="font-size: 13px; color: #666; margin-top: 5px;">
+                            P/E ratio, profit margins, return on equity (ROE)
+                        </p>
+                    </div>
+
+                    <div style="border-top: 2px solid #ddd; padding-top: 15px; margin-top: 15px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <strong style="font-size: 18px;">Total Score:</strong>
+                            <strong style="font-size: 24px; color: #667eea;">${breakdown.total}</strong>
+                        </div>
+                        <p style="font-size: 13px; color: #666; margin-top: 5px;">
+                            Baseline (50) + Technical (${breakdown.technical > 0 ? '+' : ''}${breakdown.technical}) + Fundamental (${breakdown.fundamental > 0 ? '+' : ''}${breakdown.fundamental}) = ${breakdown.total}
+                        </p>
+                    </div>
+        `;
+    }
+
+    html += `
+                </div>
+            </div>
         </div>
     `;
 

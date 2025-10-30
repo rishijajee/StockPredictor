@@ -108,70 +108,109 @@ class StockPredictionEngine:
     def calculate_prediction_score(self, df, info):
         """Calculate a prediction score based on multiple factors"""
         if df is None or len(df) < 50:
-            return 0, "Insufficient data", {'baseline': 0, 'technical': 0, 'fundamental': 0, 'total': 0}
+            return 0, "Insufficient data", {'baseline': 0, 'technical': 0, 'fundamental': 0, 'total': 0, 'components': []}
 
         baseline_score = 50  # Start neutral
         technical_points = 0
         fundamental_points = 0
         reasons = []
+        components = []  # Detailed component breakdown
 
         latest = df.iloc[-1]
 
         # Technical Analysis (30 points)
         # Trend following
+        sma_50_points = 0
         if latest['Close'] > latest['SMA_50']:
+            sma_50_points = 5
             technical_points += 5
             reasons.append("Price above 50-day MA")
+        components.append({'name': 'Price vs 50-day SMA', 'points': sma_50_points, 'max_points': 5, 'category': 'Technical'})
+
+        sma_200_points = 0
         if latest['Close'] > latest['SMA_200']:
+            sma_200_points = 5
             technical_points += 5
             reasons.append("Price above 200-day MA")
+        components.append({'name': 'Price vs 200-day SMA', 'points': sma_200_points, 'max_points': 5, 'category': 'Technical'})
+
+        golden_cross_points = 0
         if latest['SMA_50'] > latest['SMA_200']:
+            golden_cross_points = 5
             technical_points += 5
             reasons.append("Golden cross formation")
+        components.append({'name': 'Golden Cross (50>200)', 'points': golden_cross_points, 'max_points': 5, 'category': 'Technical'})
 
         # Momentum
+        rsi_points = 0
         if 30 <= latest['RSI'] <= 70:
+            rsi_points = 5
             technical_points += 5
             reasons.append(f"Healthy RSI ({latest['RSI']:.1f})")
         elif latest['RSI'] < 30:
+            rsi_points = 3
             technical_points += 3
             reasons.append("Oversold condition (potential bounce)")
         elif latest['RSI'] > 70:
+            rsi_points = -3
             technical_points -= 3
             reasons.append("Overbought condition")
+        components.append({'name': f'RSI ({latest["RSI"]:.1f})', 'points': rsi_points, 'max_points': 5, 'category': 'Technical'})
 
         # MACD
+        macd_points = 0
         if latest['MACD'] > latest['Signal_Line']:
+            macd_points = 5
             technical_points += 5
             reasons.append("Bullish MACD crossover")
+        components.append({'name': 'MACD Signal', 'points': macd_points, 'max_points': 5, 'category': 'Technical'})
 
         # Volume
+        volume_points = 0
         if latest['Volume'] > latest['Volume_SMA']:
+            volume_points = 5
             technical_points += 5
             reasons.append("Above-average volume")
+        components.append({'name': 'Volume Trend', 'points': volume_points, 'max_points': 5, 'category': 'Technical'})
 
         # Fundamental factors (20 points)
+        pe_points = 0
         try:
             if 'forwardPE' in info and info['forwardPE'] is not None:
                 pe = info['forwardPE']
                 if 10 <= pe <= 25:
+                    pe_points = 10
                     fundamental_points += 10
                     reasons.append(f"Reasonable P/E ratio ({pe:.1f})")
                 elif pe < 10:
+                    pe_points = 5
                     fundamental_points += 5
                     reasons.append(f"Low P/E ratio ({pe:.1f})")
+        except:
+            pass
+        components.append({'name': 'P/E Ratio Valuation', 'points': pe_points, 'max_points': 10, 'category': 'Fundamental'})
 
+        margin_points = 0
+        try:
             if 'profitMargins' in info and info['profitMargins'] is not None:
                 if info['profitMargins'] > 0.15:
+                    margin_points = 5
                     fundamental_points += 5
                     reasons.append(f"Strong profit margins ({info['profitMargins']*100:.1f}%)")
+        except:
+            pass
+        components.append({'name': 'Profit Margins', 'points': margin_points, 'max_points': 5, 'category': 'Fundamental'})
 
+        roe_points = 0
+        try:
             if 'returnOnEquity' in info and info['returnOnEquity'] is not None:
                 if info['returnOnEquity'] > 0.15:
+                    roe_points = 5
                     fundamental_points += 5
                     reasons.append(f"High ROE ({info['returnOnEquity']*100:.1f}%)")
         except:
             pass
+        components.append({'name': 'Return on Equity (ROE)', 'points': roe_points, 'max_points': 5, 'category': 'Fundamental'})
 
         # Calculate total score
         total_score = baseline_score + technical_points + fundamental_points
@@ -185,13 +224,14 @@ class StockPredictionEngine:
             'total': final_score,
             'baseline_pct': round((baseline_score / final_score * 100) if final_score > 0 else 0, 1),
             'technical_pct': round((technical_points / final_score * 100) if final_score > 0 else 0, 1),
-            'fundamental_pct': round((fundamental_points / final_score * 100) if final_score > 0 else 0, 1)
+            'fundamental_pct': round((fundamental_points / final_score * 100) if final_score > 0 else 0, 1),
+            'components': components
         }
 
         return final_score, " | ".join(reasons[:5]), breakdown  # Limit to top 5 reasons
 
-    def predict_price(self, df, timeframe='short'):
-        """Predict future price based on timeframe"""
+    def predict_price(self, df, timeframe='short', score=50):
+        """Predict future price based on timeframe and score"""
         if df is None or len(df) < 20:
             return None
 
@@ -203,18 +243,30 @@ class StockPredictionEngine:
                 sma = df['SMA_20'].iloc[-1]
                 rsi = df['RSI'].iloc[-1]
 
-                # Momentum-based prediction
-                if pd.isna(rsi):
-                    predicted = current_price * 1.03  # Default 3% increase
-                elif rsi > 60:
-                    predicted = current_price * 1.05  # 5% up
-                elif rsi < 40:
-                    predicted = current_price * 1.08  # 8% up (oversold bounce)
+                # Score-based multiplier (align prediction with score)
+                if score >= 80:
+                    multiplier = 1.08  # 8% increase for very high scores
+                elif score >= 70:
+                    multiplier = 1.06  # 6% increase for high scores
+                elif score >= 60:
+                    multiplier = 1.04  # 4% increase for above-average scores
+                elif score >= 50:
+                    multiplier = 1.02  # 2% increase for neutral scores
+                elif score >= 40:
+                    multiplier = 1.00  # No change for below-neutral
                 else:
-                    if pd.isna(sma):
-                        predicted = current_price * 1.03
-                    else:
-                        predicted = (current_price + sma) / 2
+                    multiplier = 0.98  # 2% decrease for low scores
+
+                # Momentum-based prediction (adjusted by score)
+                if pd.isna(rsi):
+                    predicted = current_price * multiplier
+                elif rsi > 60:
+                    predicted = current_price * max(multiplier, 1.05)  # At least 5% up for strong momentum
+                elif rsi < 40:
+                    predicted = current_price * max(multiplier, 1.08)  # At least 8% up for oversold
+                else:
+                    # Neutral RSI - use score-based prediction
+                    predicted = current_price * multiplier
 
             elif timeframe == 'mid':  # 3-12 months
                 if len(df) >= 60:
@@ -297,16 +349,16 @@ class StockPredictionEngine:
                 print(f"Timezone handling error: {e}")
                 # Default to "Last Close Price" on error
 
-            # Ensure all predictions return valid values
-            short_predicted = self.predict_price(df, 'short')
+            # Ensure all predictions return valid values (pass score for alignment)
+            short_predicted = self.predict_price(df, 'short', score)
             if short_predicted is None:
                 short_predicted = round(current_price * 1.03, 2)
 
-            mid_predicted = self.predict_price(df, 'mid')
+            mid_predicted = self.predict_price(df, 'mid', score)
             if mid_predicted is None:
                 mid_predicted = round(current_price * 1.10, 2)
 
-            long_predicted = self.predict_price(df, 'long')
+            long_predicted = self.predict_price(df, 'long', score)
             if long_predicted is None:
                 long_predicted = round(current_price * 1.25, 2)
 

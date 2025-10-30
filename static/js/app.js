@@ -389,6 +389,51 @@ function displayStockDetail(stock) {
                             Baseline (50) + Technical (${breakdown.technical > 0 ? '+' : ''}${breakdown.technical}) + Fundamental (${breakdown.fundamental > 0 ? '+' : ''}${breakdown.fundamental}) = ${breakdown.total}
                         </p>
                     </div>
+
+                    <div style="border-top: 2px solid #ddd; padding-top: 20px; margin-top: 20px;">
+                        <h5 style="margin-bottom: 15px; color: #333;">Detailed Component Breakdown</h5>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: #f8f9fa; border-bottom: 2px solid #ddd;">
+                                    <th style="padding: 10px; text-align: left;">Component</th>
+                                    <th style="padding: 10px; text-align: center;">Category</th>
+                                    <th style="padding: 10px; text-align: center;">Points Earned</th>
+                                    <th style="padding: 10px; text-align: center;">Max Points</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+        `;
+
+        if (breakdown.components && breakdown.components.length > 0) {
+            breakdown.components.forEach(comp => {
+                const pointsColor = comp.points > 0 ? '#28a745' : comp.points < 0 ? '#dc3545' : '#6c757d';
+                const categoryColor = comp.category === 'Technical' ? '#17a2b8' : '#ffc107';
+                html += `
+                                <tr style="border-bottom: 1px solid #eee;">
+                                    <td style="padding: 10px;">${comp.name}</td>
+                                    <td style="padding: 10px; text-align: center;">
+                                        <span style="background: ${categoryColor}; color: white; padding: 3px 10px; border-radius: 12px; font-size: 12px;">
+                                            ${comp.category}
+                                        </span>
+                                    </td>
+                                    <td style="padding: 10px; text-align: center; font-weight: bold; color: ${pointsColor};">
+                                        ${comp.points > 0 ? '+' : ''}${comp.points}
+                                    </td>
+                                    <td style="padding: 10px; text-align: center; color: #6c757d;">
+                                        ${comp.max_points}
+                                    </td>
+                                </tr>
+                `;
+            });
+        }
+
+        html += `
+                            </tbody>
+                        </table>
+                        <p style="font-size: 12px; color: #999; margin-top: 10px; font-style: italic;">
+                            Each component contributes to the overall prediction score. Positive points indicate favorable signals, while negative points indicate caution.
+                        </p>
+                    </div>
         `;
     }
 

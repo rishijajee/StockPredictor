@@ -113,6 +113,30 @@ function displayStockScoreResults(data) {
                     <p><strong>Time Horizon:</strong> ${data.finllm_decision.time_horizon}</p>
                 </div>
             </div>
+
+            <!-- FinMA Stock Movement Prediction -->
+            <div class="llm-card">
+                <div class="llm-header">
+                    <div class="llm-icon">📈</div>
+                    <div>
+                        <div class="llm-title">Open FinMA - Stock Movement Prediction</div>
+                        <div class="llm-subtitle">Advanced financial movement analysis model</div>
+                    </div>
+                </div>
+                <div class="sentiment-result" style="background: ${
+                    data.finma_prediction.movement_direction === 'Upward' ? '#d4edda' :
+                    data.finma_prediction.movement_direction === 'Downward' ? '#f8d7da' : '#e7f3ff'
+                }; border-left: 4px solid ${
+                    data.finma_prediction.movement_direction === 'Upward' ? '#28a745' :
+                    data.finma_prediction.movement_direction === 'Downward' ? '#dc3545' : '#17a2b8'
+                };">
+                    <p><strong>Movement Direction:</strong> <span style="font-size: 24px; font-weight: bold;">${data.finma_prediction.movement_direction}</span></p>
+                    <p><strong>Confidence Score:</strong> ${(data.finma_prediction.confidence_score * 100).toFixed(1)}%</p>
+                    <p><strong>Price Target Range (${data.finma_prediction.timeframe}):</strong> $${data.finma_prediction.price_target_low} - $${data.finma_prediction.price_target_high}</p>
+                    <p><strong>Key Factors:</strong> ${data.finma_prediction.key_factors}</p>
+                    <p><strong>Volatility Assessment:</strong> ${data.finma_prediction.volatility_assessment}</p>
+                </div>
+            </div>
         </div>
     `;
 

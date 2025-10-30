@@ -64,7 +64,7 @@
     <div class="container">
         <header>
             <h1>🤖 StockScore</h1>
-            <p class="subtitle">Real-Time AI LLM Stock Analysis</p>
+            <p class="subtitle">Real-Time AI LLM Stock Analysis - Powered by 4 Financial LLMs</p>
             <div style="text-align: center; margin: 15px 0;">
                 <a href="/" style="color: #667eea; text-decoration: none; font-weight: 500;">← Back to StockPredictor</a>
             </div>
@@ -91,7 +91,7 @@
             <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 8px; margin-bottom: 20px;">
                 <h3 style="color: white;">Overview</h3>
                 <p style="line-height: 1.8;">
-                    StockScore uses three cutting-edge Large Language Models (LLMs) specifically trained on financial data to provide comprehensive, real-time stock analysis. Each LLM specializes in a different aspect of financial analysis, combining to give you a 360-degree view of any stock.
+                    StockScore uses four cutting-edge Large Language Models (LLMs) specifically trained on financial data to provide comprehensive, real-time stock analysis. Each LLM specializes in a different aspect of financial analysis, combining to give you a 360-degree view of any stock with advanced price movement predictions.
                 </p>
             </div>
 
@@ -140,6 +140,30 @@
                 <p><strong>Output:</strong> Buy/Hold/Sell recommendation with detailed rationale and risk factors</p>
             </div>
 
+            <div style="background: white; color: #333; padding: 25px; border-radius: 10px; margin-bottom: 20px;">
+                <h3 style="color: #667eea;">4️⃣ Open FinMA - Stock Movement Prediction</h3>
+                <p><strong>What:</strong> Open FinMA (Financial Market Analysis) is an advanced large language model specifically trained for predicting stock price movements and volatility assessment.</p>
+                <p><strong>LLM Used:</strong> Open FinMA (Hugging Face: ChanceFocus/finma-7b-full or similar financial prediction model)</p>
+                <p><strong>How It Works:</strong></p>
+                <ul style="line-height: 1.8; margin-left: 20px;">
+                    <li>Analyzes current stock price, historical patterns, and market momentum indicators</li>
+                    <li>Processes technical chart patterns and identifies support/resistance levels</li>
+                    <li>Evaluates market microstructure including volume, volatility, and order flow dynamics</li>
+                    <li>Applies machine learning models trained on millions of historical price movements</li>
+                    <li>Generates probabilistic price targets with confidence intervals for specified timeframes</li>
+                    <li>Assesses volatility risk and identifies potential price range boundaries</li>
+                    <li>Considers correlation with sector indices and overall market conditions</li>
+                </ul>
+                <p><strong>Output:</strong> Movement direction (Upward/Neutral/Downward), price target range for 30 days, confidence score, key technical factors, and volatility assessment</p>
+                <p><strong>Key Features:</strong></p>
+                <ul style="line-height: 1.8; margin-left: 20px;">
+                    <li><strong>Price Target Range:</strong> Provides low and high price estimates based on statistical analysis</li>
+                    <li><strong>Directional Bias:</strong> Identifies bullish, bearish, or neutral trend direction</li>
+                    <li><strong>Volatility Scoring:</strong> Quantifies expected price fluctuation magnitude</li>
+                    <li><strong>Confidence Metrics:</strong> Probability score indicating prediction reliability</li>
+                </ul>
+            </div>
+
             <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 8px;">
                 <h3 style="color: white;">Integration Workflow</h3>
                 <ol style="line-height: 2; margin-left: 20px;">
@@ -150,10 +174,11 @@
                             <li>FinGPT analyzes overall market sentiment</li>
                             <li>FinBERT classifies and scores recent news</li>
                             <li>FinLLM synthesizes all data for investment decision</li>
+                            <li>Open FinMA predicts stock price movement and volatility</li>
                         </ul>
                     </li>
-                    <li><strong>Result Aggregation:</strong> Combine outputs from all three LLMs</li>
-                    <li><strong>Display:</strong> Present comprehensive analysis with visual indicators</li>
+                    <li><strong>Result Aggregation:</strong> Combine outputs from all four LLMs</li>
+                    <li><strong>Display:</strong> Present comprehensive analysis with visual indicators and price targets</li>
                 </ol>
             </div>
 

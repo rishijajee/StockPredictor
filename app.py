@@ -1096,20 +1096,63 @@ def generate_consolidated_summary(ticker, company_name, current_price, fingpt_an
 
     **Key Takeaway:**
     {"The strong AI consensus across multiple models provides high confidence in this assessment. All signals are aligned in the same direction, reducing false positive/negative risk and suggesting genuine directional conviction." if (positive_signals >= 3 or negative_signals >= 3) else "Mixed signals across AI models suggest a transitional or uncertain phase. Investors should wait for clearer confirmation before taking large directional positions." if abs(positive_signals - negative_signals) <= 1 else "Moderate directional bias emerging but not yet fully confirmed. Consider scaled entry/exit strategies that allow for position adjustments as signals evolve."} This analysis synthesizes real-time sentiment data, news classification, fundamental factors, and technical patterns to provide a comprehensive view of {ticker}'s current investment profile.
-
-    **Disclaimer:** This AI-generated analysis is for informational purposes only and should not be considered financial advice. Always conduct your own due diligence and consult with qualified financial advisors before making investment decisions. Past performance and AI predictions do not guarantee future results.
     """
+
+    # Add industry alternatives section if available
+    industry_section = ""
+    if industry_alternatives and industry_alternatives.get('has_alternatives'):
+        alternatives = industry_alternatives.get('alternatives', [])
+        sector = industry_alternatives.get('sector', 'same industry')
+
+        if alternatives:
+            industry_section = f"\n\n    **💡 Alternative Investment Opportunities in {sector}:**\n"
+            industry_section += f"    Based on our AI analysis, the following {sector} stocks currently show stronger signals than {ticker}:\n\n"
+
+            for i, alt in enumerate(alternatives, 1):
+                alt_ticker = alt['ticker']
+                alt_name = alt['name']
+                alt_price = alt['price']
+                alt_sentiment = alt['sentiment'].upper()
+                alt_score = alt['score'] * 100
+
+                industry_section += f"    **{i}. {alt_ticker} - {alt_name}**\n"
+                industry_section += f"    • Current Price: ${alt_price}\n"
+                industry_section += f"    • AI Sentiment: {alt_sentiment} ({alt_score:.1f}% confidence)\n"
+                industry_section += f"    • Comparative Advantage: "
+
+                if alt_score > 75:
+                    industry_section += f"Strong positive momentum with {alt_score:.1f}% AI confidence suggests robust upside potential. "
+                elif alt_score > 65:
+                    industry_section += f"Moderate positive signals with {alt_score:.1f}% confidence indicate emerging strength. "
+                else:
+                    industry_section += f"Positive sentiment detected with room for improvement. "
+
+                industry_section += f"Consider {alt_ticker} as a potential alternative or complement to {ticker} within your {sector} allocation.\n\n"
+
+            industry_section += f"    **Investment Strategy:** These alternatives were identified through the same comprehensive 4-LLM analysis framework. "
+            if recommendation in ['SELL', 'HOLD']:
+                industry_section += f"Given {ticker}'s {recommendation} rating, rotating capital into these higher-conviction {sector} opportunities may improve risk-adjusted returns. "
+            else:
+                industry_section += f"While {ticker} shows promise, these peers demonstrate even stronger AI consensus, potentially offering superior risk-reward profiles. "
+
+            industry_section += "Always compare full analyses before making investment decisions."
+
+    summary_with_alternatives = summary.strip() + industry_section
+
+    # Add disclaimer
+    summary_with_alternatives += "\n\n    **Disclaimer:** This AI-generated analysis is for informational purposes only and should not be considered financial advice. Always conduct your own due diligence and consult with qualified financial advisors before making investment decisions. Past performance and AI predictions do not guarantee future results."
 
     return {
         'overall_verdict': overall_verdict,
         'verdict_color': verdict_color,
         'recommendation': recommendation,
         'confidence': confidence,
-        'summary': summary.strip(),
+        'summary': summary_with_alternatives.strip(),
         'positive_signals': positive_signals,
         'negative_signals': negative_signals,
         'price_outlook': f"${price_target_low} - ${price_target_high} (30-day target range)",
-        'action_statement': action_statement
+        'action_statement': action_statement,
+        'industry_alternatives': industry_alternatives
     }
 
 @app.route('/api/stockscore/<ticker>')
@@ -1151,20 +1194,77 @@ def get_stockscore(ticker):
         recommendation = info.get('recommendationKey', 'none')
         target_price = info.get('targetMeanPrice', 0)
 
-        # Create rich context for analysis
+        # Create rich narrative context for sentiment analysis
         market_cap_str = f"${market_cap:,}" if market_cap > 0 else 'N/A'
-        stock_context = f"""
-        Stock: {company_name} ({ticker})
-        Current Price: ${current_price}
-        1-Day Change: {price_change_1d:.2f}%
-        1-Week Change: {price_change_1w:.2f}%
-        1-Month Change: {price_change_1m:.2f}%
-        P/E Ratio: {pe_ratio}
-        Market Cap: {market_cap_str}
-        Volume vs Avg: {volume_ratio:.2f}x
-        Analyst Recommendation: {recommendation}
-        Target Price: ${target_price}
-        """
+
+        # Generate sentiment-rich narrative based on actual metrics
+        narrative_parts = []
+
+        # Price movement narrative
+        if price_change_1d > 3:
+            narrative_parts.append(f"{ticker} surged {price_change_1d:.1f}% today, showing strong bullish momentum and investor confidence")
+        elif price_change_1d > 1:
+            narrative_parts.append(f"{ticker} gained {price_change_1d:.1f}% today with positive buying pressure")
+        elif price_change_1d < -3:
+            narrative_parts.append(f"{ticker} plummeted {abs(price_change_1d):.1f}% today amid heavy selling and bearish sentiment")
+        elif price_change_1d < -1:
+            narrative_parts.append(f"{ticker} declined {abs(price_change_1d):.1f}% today facing selling pressure")
+        else:
+            narrative_parts.append(f"{ticker} traded relatively flat with minimal price action")
+
+        # Weekly trend narrative
+        if price_change_1w > 5:
+            narrative_parts.append(f"The stock rallied {price_change_1w:.1f}% over the past week showing exceptional strength")
+        elif price_change_1w > 2:
+            narrative_parts.append(f"gaining {price_change_1w:.1f}% this week with improving technicals")
+        elif price_change_1w < -5:
+            narrative_parts.append(f"The stock crashed {abs(price_change_1w):.1f}% this week with deteriorating sentiment")
+        elif price_change_1w < -2:
+            narrative_parts.append(f"dropping {abs(price_change_1w):.1f}% this week amid weakness")
+
+        # Monthly performance narrative
+        if price_change_1m > 10:
+            narrative_parts.append(f"Over the past month, {company_name} skyrocketed {price_change_1m:.1f}%, greatly outperforming the market")
+        elif price_change_1m > 5:
+            narrative_parts.append(f"The stock rose {price_change_1m:.1f}% over the past month, beating market expectations")
+        elif price_change_1m < -10:
+            narrative_parts.append(f"Over the past month, {ticker} collapsed {abs(price_change_1m):.1f}%, severely underperforming")
+        elif price_change_1m < -5:
+            narrative_parts.append(f"declining {abs(price_change_1m):.1f}% over the month with bearish trends")
+
+        # Volume narrative
+        if volume_ratio > 2:
+            narrative_parts.append(f"Trading volume exploded to {volume_ratio:.1f}x normal levels, indicating intense interest")
+        elif volume_ratio > 1.5:
+            narrative_parts.append(f"with elevated volume at {volume_ratio:.1f}x average showing increased activity")
+        elif volume_ratio < 0.5:
+            narrative_parts.append(f"but volume dried up to just {volume_ratio:.1f}x average suggesting low conviction")
+
+        # Analyst recommendation narrative
+        if recommendation == 'strong_buy':
+            narrative_parts.append(f"Analysts strongly recommend buying {ticker} with high conviction")
+        elif recommendation == 'buy':
+            narrative_parts.append(f"Wall Street analysts recommend buying {ticker}")
+        elif recommendation == 'hold':
+            narrative_parts.append(f"Analysts maintain neutral stance advising hold")
+        elif recommendation == 'sell':
+            narrative_parts.append(f"Analysts recommend selling {ticker} citing concerns")
+        elif recommendation == 'strong_sell':
+            narrative_parts.append(f"Analysts issue strong sell rating with major red flags")
+
+        # Target price narrative
+        if target_price > 0:
+            upside = ((target_price - current_price) / current_price) * 100
+            if upside > 20:
+                narrative_parts.append(f"Analyst price targets suggest massive {upside:.1f}% upside potential to ${target_price:.2f}")
+            elif upside > 10:
+                narrative_parts.append(f"with significant {upside:.1f}% upside to analyst target of ${target_price:.2f}")
+            elif upside > 0:
+                narrative_parts.append(f"with moderate {upside:.1f}% upside to ${target_price:.2f} target")
+            elif upside < -10:
+                narrative_parts.append(f"but analyst targets imply {abs(upside):.1f}% downside to ${target_price:.2f}")
+
+        stock_context = ". ".join(narrative_parts) + f". {company_name} trades at ${current_price}."
 
         print(f"DEBUG: Stock context for {ticker}:")
         print(stock_context)
@@ -1182,11 +1282,21 @@ def get_stockscore(ticker):
         print(f"Calling FinMA for {ticker}...")
         finma_prediction = call_finma_prediction(ticker, company_name, current_price)
 
+        # Analyze industry peers for alternatives
+        print(f"Analyzing industry peers for {ticker}...")
+        sector = info.get('sector', 'Technology')
+        industry = info.get('industry', 'Technology')
+        industry_alternatives = analyze_industry_peers(
+            ticker, sector, industry,
+            finllm_decision.get('recommendation', 'HOLD')
+        )
+
         # Generate consolidated summary
         print(f"Generating consolidated summary for {ticker}...")
         consolidated_summary = generate_consolidated_summary(
             ticker, company_name, current_price,
-            fingpt_analysis, finbert_analysis, finllm_decision, finma_prediction
+            fingpt_analysis, finbert_analysis, finllm_decision, finma_prediction,
+            industry_alternatives
         )
 
         response_data = {

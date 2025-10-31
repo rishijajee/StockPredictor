@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 import os
 import requests
 import time
+from huggingface_hub import InferenceClient
 from prediction_engine import StockPredictionEngine
 from analysis_engine import AnalysisEngine
 
@@ -573,79 +574,49 @@ def call_fingpt_sentiment(ticker, company_name, current_price, news_context=""):
     print(f"FinGPT: API key found (length: {len(api_key)})")
 
     try:
-        # FinGPT model for financial sentiment and price prediction
-        # Using a general financial text generation model as FinGPT proxy
-        API_URL = "https://api-inference.huggingface.co/models/ProsusAI/finbert"
+        # Use new InferenceClient (2025 Hugging Face API)
+        client = InferenceClient(token=api_key)
 
         # Create context text for analysis
         text = f"Analyzing {company_name} ({ticker}) stock priced at ${current_price}. Recent market activity and news sentiment for price movement prediction."
 
-        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-        print(f"FinGPT: Calling Hugging Face API for {ticker}...")
+        print(f"FinGPT: Calling Hugging Face InferenceClient for {ticker}...")
 
-        # First attempt - may get 503 if model is loading
-        response = requests.post(API_URL, headers=headers, json={"inputs": text}, timeout=60)
+        # Use FinBERT model for financial sentiment classification
+        result = client.text_classification(
+            text,
+            model="ProsusAI/finbert"
+        )
 
-        # If model is loading (503), wait and retry once
-        if response.status_code == 503:
-            print(f"FinGPT: Model loading (503), waiting 20 seconds and retrying...")
-            time.sleep(20)
-            response = requests.post(API_URL, headers=headers, json={"inputs": text}, timeout=60)
+        print(f"FinGPT: API Success! Result: {result}")
 
-        print(f"FinGPT: API Response Status: {response.status_code}")
+        if result and len(result) > 0:
+            top_sentiment = max(result, key=lambda x: x['score'])
 
-        if response.status_code == 503:
-            # Model is loading
-            print(f"FinGPT: Model is loading (503). This can take 20-30 seconds on first request.")
+            # Map sentiment to price prediction
+            if top_sentiment['label'] == 'positive':
+                price_pred = f"Expected to rise 3-7% in next 30 days based on positive sentiment"
+                sentiment_label = 'positive'
+            elif top_sentiment['label'] == 'negative':
+                price_pred = f"Expected to decline 2-5% in next 30 days based on negative sentiment"
+                sentiment_label = 'negative'
+            else:
+                price_pred = f"Expected to remain stable with 0-3% fluctuation"
+                sentiment_label = 'neutral'
+
             return {
-                'sentiment': 'neutral',
-                'confidence': 0.50,
-                'price_prediction': 'Model loading - please try again in 30 seconds',
-                'summary': f'FinGPT model is initializing. First request may take 20-30 seconds. Please refresh and try {ticker} again.'
+                'sentiment': sentiment_label,
+                'confidence': top_sentiment['score'],
+                'price_prediction': price_pred,
+                'summary': f"FinGPT analysis shows {sentiment_label} sentiment for {ticker}. Market indicators suggest {price_pred.lower()}."
             }
 
-        if response.status_code != 200:
-            print(f"FinGPT: API Error Response: {response.text}")
-            error_msg = response.text[:200] if response.text else "Unknown error"
-            return {
-                'sentiment': 'neutral',
-                'confidence': 0.50,
-                'price_prediction': f'API Error ({response.status_code})',
-                'summary': f'FinGPT API error for {ticker}: {error_msg}'
-            }
-
-        if response.status_code == 200:
-            result = response.json()
-            print(f"FinGPT: API Success! Result: {result}")
-
-            if isinstance(result, list) and len(result) > 0:
-                sentiments = result[0]
-                top_sentiment = max(sentiments, key=lambda x: x['score'])
-
-                # Map sentiment to price prediction
-                if top_sentiment['label'] == 'positive':
-                    price_pred = f"Expected to rise 3-7% in next 30 days based on positive sentiment"
-                    sentiment_label = 'positive'
-                elif top_sentiment['label'] == 'negative':
-                    price_pred = f"Expected to decline 2-5% in next 30 days based on negative sentiment"
-                    sentiment_label = 'negative'
-                else:
-                    price_pred = f"Expected to remain stable with 0-3% fluctuation"
-                    sentiment_label = 'neutral'
-
-                return {
-                    'sentiment': sentiment_label,
-                    'confidence': top_sentiment['score'],
-                    'price_prediction': price_pred,
-                    'summary': f"FinGPT analysis shows {sentiment_label} sentiment for {ticker}. Market indicators suggest {price_pred.lower()}."
-                }
-
-        # Fallback if API response format unexpected
+        # Fallback if no results
         return {
             'sentiment': 'neutral',
             'confidence': 0.50,
-            'price_prediction': 'Unexpected API response format',
-            'summary': f'{ticker} analysis received unexpected response. Please try again.'
+            'price_prediction': 'No classification results',
+            'summary': f'{ticker} analysis received no results. Please try again.'
         }
 
     except Exception as e:
@@ -670,43 +641,40 @@ def call_finbert_news(ticker, company_name, current_price):
         }
 
     try:
-        API_URL = "https://api-inference.huggingface.co/models/ProsusAI/finbert"
+        # Use new InferenceClient (2025 Hugging Face API)
+        client = InferenceClient(token=api_key)
 
         text = f"Latest news and market developments for {company_name} ({ticker}). Stock trading at ${current_price}. Evaluating news impact and market sentiment."
 
-        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-        print(f"FinBERT: Calling Hugging Face API for {ticker}...")
-        response = requests.post(API_URL, headers=headers, json={"inputs": text}, timeout=60)
+        print(f"FinBERT: Calling Hugging Face InferenceClient for {ticker}...")
 
-        # If model is loading (503), wait and retry once
-        if response.status_code == 503:
-            print(f"FinBERT: Model loading (503), waiting 20 seconds and retrying...")
-            time.sleep(20)
-            response = requests.post(API_URL, headers=headers, json={"inputs": text}, timeout=60)
+        result = client.text_classification(
+            text,
+            model="ProsusAI/finbert"
+        )
 
-        if response.status_code == 200:
-            result = response.json()
-            if isinstance(result, list) and len(result) > 0:
-                sentiments = result[0]
-                top_sentiment = max(sentiments, key=lambda x: x['score'])
+        print(f"FinBERT: API Success! Result: {result}")
 
-                # Map to impact assessment
-                if top_sentiment['label'] == 'positive':
-                    impact = "Strong positive impact expected from recent news developments"
-                    findings = f"News analysis indicates favorable market conditions for {ticker}. Positive catalysts include strong market sentiment and favorable analyst coverage."
-                elif top_sentiment['label'] == 'negative':
-                    impact = "Negative impact detected from recent developments"
-                    findings = f"News analysis shows concerns for {ticker}. Market headwinds and cautious analyst outlooks detected."
-                else:
-                    impact = "Neutral news impact - balanced market coverage"
-                    findings = f"News sentiment for {ticker} is balanced with mixed signals from various sources."
+        if result and len(result) > 0:
+            top_sentiment = max(result, key=lambda x: x['score'])
 
-                return {
-                    'sentiment': top_sentiment['label'],
-                    'score': top_sentiment['score'],
-                    'impact': impact,
-                    'findings': findings
-                }
+            # Map to impact assessment
+            if top_sentiment['label'] == 'positive':
+                impact = "Strong positive impact expected from recent news developments"
+                findings = f"News analysis indicates favorable market conditions for {ticker}. Positive catalysts include strong market sentiment and favorable analyst coverage."
+            elif top_sentiment['label'] == 'negative':
+                impact = "Negative impact detected from recent developments"
+                findings = f"News analysis shows concerns for {ticker}. Market headwinds and cautious analyst outlooks detected."
+            else:
+                impact = "Neutral news impact - balanced market coverage"
+                findings = f"News sentiment for {ticker} is balanced with mixed signals from various sources."
+
+            return {
+                'sentiment': top_sentiment['label'],
+                'score': top_sentiment['score'],
+                'impact': impact,
+                'findings': findings
+            }
 
         return {
             'sentiment': 'neutral',
@@ -791,60 +759,56 @@ def call_finma_prediction(ticker, company_name, current_price):
         }
 
     try:
-        # Using FinBERT as proxy for FinMA (FinMA models may require specific Hugging Face endpoints)
-        # In production, you would use: https://api-inference.huggingface.co/models/ChanceFocus/finma-7b-full
-        API_URL = "https://api-inference.huggingface.co/models/ProsusAI/finbert"
+        # Use new InferenceClient (2025 Hugging Face API)
+        client = InferenceClient(token=api_key)
 
         text = f"Stock movement prediction for {company_name} ({ticker}) currently trading at ${current_price}. Analyze technical patterns, market momentum, and provide price target range for next 30 days."
 
-        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-        print(f"FinMA: Calling Hugging Face API for {ticker}...")
-        response = requests.post(API_URL, headers=headers, json={"inputs": text}, timeout=60)
+        print(f"FinMA: Calling Hugging Face InferenceClient for {ticker}...")
 
-        # If model is loading (503), wait and retry once
-        if response.status_code == 503:
-            print(f"FinMA: Model loading (503), waiting 20 seconds and retrying...")
-            time.sleep(20)
-            response = requests.post(API_URL, headers=headers, json={"inputs": text}, timeout=60)
+        # Using FinBERT as proxy for FinMA
+        result = client.text_classification(
+            text,
+            model="ProsusAI/finbert"
+        )
 
-        if response.status_code == 200:
-            result = response.json()
-            if isinstance(result, list) and len(result) > 0:
-                sentiments = result[0]
-                top_sentiment = max(sentiments, key=lambda x: x['score'])
+        print(f"FinMA: API Success! Result: {result}")
 
-                # Map sentiment to movement prediction
-                if top_sentiment['label'] == 'positive':
-                    movement = 'Upward'
-                    confidence = top_sentiment['score']
-                    price_low = round(current_price * 1.03, 2)
-                    price_high = round(current_price * 1.08, 2)
-                    factors = f"FinMA identifies strong bullish momentum for {ticker}. Technical indicators suggest upward price action with positive market sentiment and strong buying pressure."
-                    volatility = "Moderate volatility with upward bias"
-                elif top_sentiment['label'] == 'negative':
-                    movement = 'Downward'
-                    confidence = top_sentiment['score']
-                    price_low = round(current_price * 0.92, 2)
-                    price_high = round(current_price * 0.97, 2)
-                    factors = f"FinMA detects bearish signals for {ticker}. Technical patterns indicate downward pressure with negative sentiment and selling pressure."
-                    volatility = "Elevated volatility with downward pressure"
-                else:
-                    movement = 'Neutral'
-                    confidence = top_sentiment['score']
-                    price_low = round(current_price * 0.98, 2)
-                    price_high = round(current_price * 1.02, 2)
-                    factors = f"FinMA shows balanced signals for {ticker}. Price expected to consolidate within narrow range with mixed technical indicators."
-                    volatility = "Low to moderate volatility expected"
+        if result and len(result) > 0:
+            top_sentiment = max(result, key=lambda x: x['score'])
 
-                return {
-                    'movement_direction': movement,
-                    'confidence_score': confidence,
-                    'price_target_low': price_low,
-                    'price_target_high': price_high,
-                    'timeframe': '30 days',
-                    'key_factors': factors,
-                    'volatility_assessment': volatility
-                }
+            # Map sentiment to movement prediction
+            if top_sentiment['label'] == 'positive':
+                movement = 'Upward'
+                confidence = top_sentiment['score']
+                price_low = round(current_price * 1.03, 2)
+                price_high = round(current_price * 1.08, 2)
+                factors = f"FinMA identifies strong bullish momentum for {ticker}. Technical indicators suggest upward price action with positive market sentiment and strong buying pressure."
+                volatility = "Moderate volatility with upward bias"
+            elif top_sentiment['label'] == 'negative':
+                movement = 'Downward'
+                confidence = top_sentiment['score']
+                price_low = round(current_price * 0.92, 2)
+                price_high = round(current_price * 0.97, 2)
+                factors = f"FinMA detects bearish signals for {ticker}. Technical patterns indicate downward pressure with negative sentiment and selling pressure."
+                volatility = "Elevated volatility with downward pressure"
+            else:
+                movement = 'Neutral'
+                confidence = top_sentiment['score']
+                price_low = round(current_price * 0.98, 2)
+                price_high = round(current_price * 1.02, 2)
+                factors = f"FinMA shows balanced signals for {ticker}. Price expected to consolidate within narrow range with mixed technical indicators."
+                volatility = "Low to moderate volatility expected"
+
+            return {
+                'movement_direction': movement,
+                'confidence_score': confidence,
+                'price_target_low': price_low,
+                'price_target_high': price_high,
+                'timeframe': '30 days',
+                'key_factors': factors,
+                'volatility_assessment': volatility
+            }
 
         return {
             'movement_direction': 'Neutral',

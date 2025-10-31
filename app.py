@@ -932,25 +932,80 @@ def call_finma_prediction(ticker, company_name, current_price):
 def analyze_industry_peers(ticker, sector, industry, current_recommendation):
     """Analyze industry peer stocks and find better alternatives"""
     try:
-        # Define industry peer groups (major stocks by sector)
-        industry_peers = {
+        # Define industry peer groups by specific industry (more granular than sector)
+        # First try to match by specific industry keywords, then fall back to sector
+        industry_groups = {
+            # Technology sub-industries
+            'Semiconductors': ['NVDA', 'AMD', 'INTC', 'QCOM', 'AVGO', 'TXN', 'MU', 'AMAT'],
+            'Software': ['MSFT', 'ORCL', 'CRM', 'ADBE', 'INTU', 'NOW', 'WDAY', 'TEAM'],
+            'Consumer Electronics': ['AAPL', 'SONY', 'DELL', 'HPQ'],
+            'Internet': ['GOOGL', 'GOOG', 'META', 'AMZN', 'NFLX', 'SNAP', 'PINS', 'UBER'],
+
+            # Automotive
+            'Auto Manufacturers': ['TSLA', 'F', 'GM', 'TM', 'HMC', 'RIVN', 'LCID'],
+
+            # Healthcare sub-industries
+            'Drug Manufacturers': ['PFE', 'JNJ', 'ABBV', 'MRK', 'LLY', 'BMY', 'GILD', 'AMGN'],
+            'Health Insurance': ['UNH', 'CVS', 'CI', 'HUM', 'ANTM', 'CNC'],
+            'Medical Devices': ['TMO', 'ABT', 'DHR', 'MDT', 'SYK', 'BSX', 'EW'],
+
+            # Retail
+            'E-commerce': ['AMZN', 'SHOP', 'EBAY', 'ETSY', 'W'],
+            'Home Improvement': ['HD', 'LOW'],
+            'Restaurants': ['MCD', 'SBUX', 'YUM', 'QSR', 'CMG', 'DPZ'],
+            'Apparel': ['NKE', 'LULU', 'UAA', 'VFC'],
+            'Discount Stores': ['WMT', 'TGT', 'COST', 'DG', 'DLTR'],
+
+            # Financial Services
+            'Banks': ['JPM', 'BAC', 'WFC', 'C', 'USB', 'PNC', 'TFC'],
+            'Investment Banks': ['GS', 'MS', 'SCHW', 'BLK', 'BX', 'KKR'],
+
+            # Communication Services
+            'Telecom': ['T', 'VZ', 'TMUS', 'CHTR'],
+            'Media': ['DIS', 'NFLX', 'CMCSA', 'PARA', 'WBD'],
+
+            # Energy
+            'Oil & Gas': ['XOM', 'CVX', 'COP', 'SLB', 'EOG', 'MPC', 'PSX', 'OXY'],
+
+            # Industrials
+            'Aerospace': ['BA', 'LMT', 'RTX', 'GD', 'NOC'],
+            'Industrial Conglomerates': ['HON', 'GE', 'MMM', 'CAT', 'DE'],
+            'Logistics': ['UPS', 'FDX', 'XPO'],
+
+            # Consumer Defensive
+            'Beverages': ['KO', 'PEP', 'MNST', 'STZ'],
+            'Household Products': ['PG', 'CL', 'KMB', 'CLX'],
+            'Tobacco': ['PM', 'MO', 'BTI'],
+
+            # Broad sector fallbacks (if specific industry not found)
             'Technology': ['AAPL', 'MSFT', 'GOOGL', 'META', 'NVDA', 'AMD', 'INTC', 'ORCL', 'CRM', 'ADBE'],
-            'Communication Services': ['GOOGL', 'META', 'DIS', 'NFLX', 'T', 'VZ', 'CMCSA'],
-            'Financial Services': ['JPM', 'BAC', 'WFC', 'GS', 'MS', 'C', 'BLK', 'SCHW', 'AXP', 'USB'],
             'Healthcare': ['UNH', 'JNJ', 'PFE', 'ABBV', 'MRK', 'TMO', 'LLY', 'ABT', 'DHR', 'CVS'],
-            'Consumer Cyclical': ['AMZN', 'TSLA', 'HD', 'MCD', 'NKE', 'SBUX', 'TGT', 'LOW', 'TJX'],
-            'Consumer Defensive': ['WMT', 'PG', 'KO', 'PEP', 'COST', 'PM', 'MO', 'CL', 'KMB'],
-            'Industrials': ['UPS', 'HON', 'BA', 'CAT', 'GE', 'MMM', 'LMT', 'RTX', 'DE'],
-            'Energy': ['XOM', 'CVX', 'COP', 'SLB', 'EOG', 'MPC', 'PSX', 'VLO', 'OXY'],
-            'Basic Materials': ['LIN', 'APD', 'ECL', 'DD', 'NEM', 'FCX', 'NUE', 'VMC'],
-            'Real Estate': ['AMT', 'PLD', 'CCI', 'EQIX', 'PSA', 'DLR', 'O', 'WELL'],
-            'Utilities': ['NEE', 'DUK', 'SO', 'D', 'AEP', 'EXC', 'SRE', 'XEL']
+            'Financial Services': ['JPM', 'BAC', 'WFC', 'GS', 'MS', 'C', 'BLK', 'SCHW'],
+            'Consumer Cyclical': ['AMZN', 'HD', 'MCD', 'NKE', 'SBUX', 'TGT', 'LOW'],
+            'Consumer Defensive': ['WMT', 'PG', 'KO', 'PEP', 'COST'],
+            'Communication Services': ['GOOGL', 'META', 'DIS', 'NFLX', 'T', 'VZ'],
+            'Energy': ['XOM', 'CVX', 'COP', 'SLB', 'EOG'],
+            'Industrials': ['UPS', 'HON', 'BA', 'CAT', 'GE'],
+            'Basic Materials': ['LIN', 'APD', 'ECL', 'DD', 'NEM'],
+            'Real Estate': ['AMT', 'PLD', 'CCI', 'EQIX', 'PSA'],
+            'Utilities': ['NEE', 'DUK', 'SO', 'D', 'AEP']
         }
 
-        # Get peers for the sector
-        peers = industry_peers.get(sector, [])
-        if ticker in peers:
-            peers.remove(ticker)  # Remove the current stock
+        # Try to find peers by specific industry first, then fall back to sector
+        peers = []
+
+        # Check if industry contains key terms that match our groups
+        for group_name, group_stocks in industry_groups.items():
+            if group_name.lower() in industry.lower() or industry.lower() in group_name.lower():
+                peers = group_stocks.copy()
+                break
+
+        # If no specific industry match, try sector
+        if not peers:
+            peers = industry_groups.get(sector, []).copy()
+
+        # Remove the current stock from peers (important: work on a copy!)
+        peers = [p for p in peers if p != ticker and p != ticker.replace('GOOGL', 'GOOG') and p != ticker.replace('GOOG', 'GOOGL')]
 
         if not peers or len(peers) < 3:
             return {
@@ -970,8 +1025,60 @@ def analyze_industry_peers(ticker, sector, industry, current_recommendation):
                 if not peer_price or peer_price == 0:
                     continue
 
-                # Quick sentiment analysis for peer
-                peer_text = f"Stock {peer_name} ({peer_ticker}) trading at ${peer_price}. Industry peer comparison analysis."
+                # Get price history for narrative context
+                peer_hist = peer_stock.history(period='1mo')
+
+                # Calculate price changes
+                price_change_1d = ((peer_price - peer_hist['Close'].iloc[-2]) / peer_hist['Close'].iloc[-2] * 100) if len(peer_hist) > 1 else 0
+                price_change_1w = ((peer_price - peer_hist['Close'].iloc[-5]) / peer_hist['Close'].iloc[-5] * 100) if len(peer_hist) > 5 else 0
+                price_change_1m = ((peer_price - peer_hist['Close'].iloc[0]) / peer_hist['Close'].iloc[0] * 100) if len(peer_hist) > 0 else 0
+
+                # Get analyst recommendation
+                peer_recommendation = peer_info.get('recommendationKey', 'none')
+                peer_target_price = peer_info.get('targetMeanPrice', 0)
+
+                # Create rich narrative for peer (simplified version)
+                narrative_parts = []
+
+                # Price movement
+                if price_change_1d > 3:
+                    narrative_parts.append(f"{peer_ticker} surged {price_change_1d:.1f}% with strong momentum")
+                elif price_change_1d > 1:
+                    narrative_parts.append(f"{peer_ticker} gained {price_change_1d:.1f}% showing strength")
+                elif price_change_1d < -3:
+                    narrative_parts.append(f"{peer_ticker} dropped {abs(price_change_1d):.1f}% facing pressure")
+                elif price_change_1d < -1:
+                    narrative_parts.append(f"{peer_ticker} declined {abs(price_change_1d):.1f}%")
+                else:
+                    narrative_parts.append(f"{peer_ticker} trading steady")
+
+                # Weekly trend
+                if price_change_1w > 5:
+                    narrative_parts.append(f"rallied {price_change_1w:.1f}% this week")
+                elif price_change_1w < -5:
+                    narrative_parts.append(f"fell {abs(price_change_1w):.1f}% this week")
+
+                # Monthly performance
+                if price_change_1m > 10:
+                    narrative_parts.append(f"up {price_change_1m:.1f}% this month, outperforming")
+                elif price_change_1m < -10:
+                    narrative_parts.append(f"down {abs(price_change_1m):.1f}% this month, underperforming")
+
+                # Analyst view
+                if peer_recommendation in ['strong_buy', 'buy']:
+                    narrative_parts.append(f"Analysts recommend buying {peer_ticker}")
+                elif peer_recommendation in ['sell', 'strong_sell']:
+                    narrative_parts.append(f"Analysts recommend selling {peer_ticker}")
+
+                # Target price upside
+                if peer_target_price > 0:
+                    upside = ((peer_target_price - peer_price) / peer_price) * 100
+                    if upside > 15:
+                        narrative_parts.append(f"with {upside:.1f}% upside potential")
+                    elif upside < -10:
+                        narrative_parts.append(f"with {abs(upside):.1f}% downside risk")
+
+                peer_text = ". ".join(narrative_parts) if narrative_parts else f"{peer_name} trading at ${peer_price}"
 
                 # Get quick sentiment (reuse existing HF client)
                 api_key = os.environ.get('HF_API_KEY') or os.environ.get('HUGGINGFACE_API_KEY')
@@ -1012,8 +1119,8 @@ def analyze_industry_peers(ticker, sector, industry, current_recommendation):
                 if peer['sentiment'] == 'positive' and peer['score'] > 0.6:
                     better_alternatives.append(peer)
             elif current_recommendation == 'BUY':
-                # If current stock is BUY, only show peers with higher confidence
-                if peer['sentiment'] == 'positive' and peer['score'] > 0.75:
+                # If current stock is BUY, show peers with strong positive signals (relaxed from 0.75 to 0.65)
+                if peer['sentiment'] == 'positive' and peer['score'] > 0.65:
                     better_alternatives.append(peer)
 
         # Sort by sentiment score

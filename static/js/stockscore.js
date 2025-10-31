@@ -1,5 +1,46 @@
 // StockScore JavaScript
 
+// Format summary with highlighted sections
+function formatSummaryWithHighlights(summary) {
+    if (!summary) return '';
+
+    // Split summary into main content and alternatives section
+    const alternativesMarker = '💡 Alternative Investment';
+
+    if (summary.includes(alternativesMarker)) {
+        const parts = summary.split(alternativesMarker);
+        const mainSummary = parts[0];
+        const alternativesSection = alternativesMarker + parts[1];
+
+        // Format the alternatives section with special highlighting
+        const formattedAlternatives = `
+            <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+                        color: white;
+                        padding: 20px;
+                        border-radius: 10px;
+                        margin-top: 20px;
+                        box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                <div style="font-size: 22px; font-weight: bold; margin-bottom: 15px; display: flex; align-items: center;">
+                    💡 Alternative Investment Opportunities
+                </div>
+                <div style="background: rgba(255,255,255,0.95);
+                            color: #333;
+                            padding: 20px;
+                            border-radius: 8px;
+                            white-space: pre-wrap;
+                            line-height: 1.8;">
+                    ${parts[1].trim()}
+                </div>
+            </div>
+        `;
+
+        return `<div style="white-space: pre-wrap;">${mainSummary}</div>${formattedAlternatives}`;
+    }
+
+    // No alternatives section, return plain summary
+    return `<div style="white-space: pre-wrap;">${summary}</div>`;
+}
+
 // Handle Enter key in search box
 document.addEventListener('DOMContentLoaded', () => {
     const searchInput = document.getElementById('stockScoreSearch');
@@ -92,8 +133,8 @@ function displayStockScoreResults(data) {
                         <strong style="font-size: 18px; display: block; margin-bottom: 10px;">Action Statement:</strong>
                         <p style="font-size: 16px; line-height: 1.6; margin: 0;">${data.consolidated_summary.action_statement}</p>
                     </div>
-                    <div style="background: white; color: #333; padding: 20px; border-radius: 8px; line-height: 1.8; white-space: pre-line;">
-                        ${data.consolidated_summary.summary}
+                    <div style="background: white; color: #333; padding: 20px; border-radius: 8px; line-height: 1.8;">
+                        ${formatSummaryWithHighlights(data.consolidated_summary.summary)}
                     </div>
                     <div style="display: flex; justify-content: space-between; margin-top: 15px; gap: 10px; flex-wrap: wrap;">
                         <div style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 6px; flex: 1; min-width: 150px;">

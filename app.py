@@ -591,24 +591,25 @@ def call_fingpt_sentiment(ticker, company_name, current_price, news_context=""):
             print(f"FinGPT: API Success! Result: {result}")
 
         except Exception as api_error:
-            error_str = str(api_error)
+            error_str = str(api_error).replace('"', "'").replace('\n', ' ')[:200]
             print(f"FinGPT: API call failed: {error_str}")
 
             # Check if it's a model loading error
-            if "loading" in error_str.lower() or "503" in error_str:
+            if "loading" in error_str.lower() or "503" in error_str or "timeout" in error_str.lower():
                 return {
                     'sentiment': 'neutral',
                     'confidence': 0.50,
-                    'price_prediction': 'Model loading - try again in 30 seconds',
-                    'summary': f'FinGPT model is warming up. Please try {ticker} again in 30 seconds.'
+                    'price_prediction': 'Model loading or timeout - try again',
+                    'summary': f'The AI model is initializing or took too long. Please try {ticker} again.'
                 }
 
-            # Return generic error
+            # Return generic error - ensure it's JSON-safe
+            safe_error = error_str.replace('"', "'").replace('\\', '/').strip()
             return {
                 'sentiment': 'neutral',
                 'confidence': 0.50,
-                'price_prediction': 'API temporarily unavailable',
-                'summary': f'FinGPT error for {ticker}: {error_str[:100]}'
+                'price_prediction': 'Analysis temporarily unavailable',
+                'summary': f'Unable to analyze {ticker} at this time. Error: {safe_error}'
             }
 
         if result and len(result) > 0:
@@ -677,22 +678,23 @@ def call_finbert_news(ticker, company_name, current_price):
             print(f"FinBERT: API Success! Result: {result}")
 
         except Exception as api_error:
-            error_str = str(api_error)
+            error_str = str(api_error).replace('"', "'").replace('\n', ' ')[:200]
             print(f"FinBERT: API call failed: {error_str}")
 
-            if "loading" in error_str.lower() or "503" in error_str:
+            if "loading" in error_str.lower() or "503" in error_str or "timeout" in error_str.lower():
                 return {
                     'sentiment': 'neutral',
                     'score': 0.50,
-                    'impact': 'Model loading - try again',
-                    'findings': f'FinBERT model warming up for {ticker}. Try again in 30 seconds.'
+                    'impact': 'Model loading or timeout',
+                    'findings': f'The AI model is initializing or took too long. Please try {ticker} again.'
                 }
 
+            safe_error = error_str.replace('"', "'").replace('\\', '/').strip()
             return {
                 'sentiment': 'neutral',
                 'score': 0.50,
-                'impact': 'API temporarily unavailable',
-                'findings': f'FinBERT error: {error_str[:100]}'
+                'impact': 'Analysis temporarily unavailable',
+                'findings': f'Unable to analyze {ticker}. Error: {safe_error}'
             }
 
         if result and len(result) > 0:
@@ -815,10 +817,12 @@ def call_finma_prediction(ticker, company_name, current_price):
             print(f"FinMA: API Success! Result: {result}")
 
         except Exception as api_error:
-            error_str = str(api_error)
+            # Sanitize error message for JSON-safe response
+            error_str = str(api_error).replace('"', "'").replace('\n', ' ')[:200]
             print(f"FinMA: API call failed: {error_str}")
 
-            if "loading" in error_str.lower() or "503" in error_str:
+            # Detect timeout/loading errors
+            if "loading" in error_str.lower() or "503" in error_str or "timeout" in error_str.lower():
                 return {
                     'movement_direction': 'Neutral',
                     'confidence_score': 0.50,
@@ -829,13 +833,15 @@ def call_finma_prediction(ticker, company_name, current_price):
                     'volatility_assessment': 'Model loading'
                 }
 
+            # Return JSON-safe error
+            safe_error = error_str.replace('"', "'").replace('\\', '/').strip()
             return {
                 'movement_direction': 'Neutral',
                 'confidence_score': 0.50,
                 'price_target_low': round(current_price * 0.98, 2),
                 'price_target_high': round(current_price * 1.02, 2),
                 'timeframe': '30 days',
-                'key_factors': f'FinMA error: {error_str[:100]}',
+                'key_factors': f'Unable to analyze {ticker}. Error: {safe_error}',
                 'volatility_assessment': 'API temporarily unavailable'
             }
 

@@ -574,21 +574,42 @@ def call_fingpt_sentiment(ticker, company_name, current_price, news_context=""):
     print(f"FinGPT: API key found (length: {len(api_key)})")
 
     try:
-        # Use new InferenceClient (2025 Hugging Face API)
-        client = InferenceClient(token=api_key)
+        # Use new InferenceClient with proper timeout (2025 Hugging Face API)
+        client = InferenceClient(token=api_key, timeout=120)
 
         # Create context text for analysis
         text = f"Analyzing {company_name} ({ticker}) stock priced at ${current_price}. Recent market activity and news sentiment for price movement prediction."
 
         print(f"FinGPT: Calling Hugging Face InferenceClient for {ticker}...")
 
-        # Use FinBERT model for financial sentiment classification
-        result = client.text_classification(
-            text,
-            model="ProsusAI/finbert"
-        )
+        try:
+            # Use FinBERT model for financial sentiment classification
+            result = client.text_classification(
+                text,
+                model="ProsusAI/finbert"
+            )
+            print(f"FinGPT: API Success! Result: {result}")
 
-        print(f"FinGPT: API Success! Result: {result}")
+        except Exception as api_error:
+            error_str = str(api_error)
+            print(f"FinGPT: API call failed: {error_str}")
+
+            # Check if it's a model loading error
+            if "loading" in error_str.lower() or "503" in error_str:
+                return {
+                    'sentiment': 'neutral',
+                    'confidence': 0.50,
+                    'price_prediction': 'Model loading - try again in 30 seconds',
+                    'summary': f'FinGPT model is warming up. Please try {ticker} again in 30 seconds.'
+                }
+
+            # Return generic error
+            return {
+                'sentiment': 'neutral',
+                'confidence': 0.50,
+                'price_prediction': 'API temporarily unavailable',
+                'summary': f'FinGPT error for {ticker}: {error_str[:100]}'
+            }
 
         if result and len(result) > 0:
             top_sentiment = max(result, key=lambda x: x['score'])
@@ -641,19 +662,38 @@ def call_finbert_news(ticker, company_name, current_price):
         }
 
     try:
-        # Use new InferenceClient (2025 Hugging Face API)
-        client = InferenceClient(token=api_key)
+        # Use new InferenceClient with proper timeout (2025 Hugging Face API)
+        client = InferenceClient(token=api_key, timeout=120)
 
         text = f"Latest news and market developments for {company_name} ({ticker}). Stock trading at ${current_price}. Evaluating news impact and market sentiment."
 
         print(f"FinBERT: Calling Hugging Face InferenceClient for {ticker}...")
 
-        result = client.text_classification(
-            text,
-            model="ProsusAI/finbert"
-        )
+        try:
+            result = client.text_classification(
+                text,
+                model="ProsusAI/finbert"
+            )
+            print(f"FinBERT: API Success! Result: {result}")
 
-        print(f"FinBERT: API Success! Result: {result}")
+        except Exception as api_error:
+            error_str = str(api_error)
+            print(f"FinBERT: API call failed: {error_str}")
+
+            if "loading" in error_str.lower() or "503" in error_str:
+                return {
+                    'sentiment': 'neutral',
+                    'score': 0.50,
+                    'impact': 'Model loading - try again',
+                    'findings': f'FinBERT model warming up for {ticker}. Try again in 30 seconds.'
+                }
+
+            return {
+                'sentiment': 'neutral',
+                'score': 0.50,
+                'impact': 'API temporarily unavailable',
+                'findings': f'FinBERT error: {error_str[:100]}'
+            }
 
         if result and len(result) > 0:
             top_sentiment = max(result, key=lambda x: x['score'])
@@ -759,20 +799,45 @@ def call_finma_prediction(ticker, company_name, current_price):
         }
 
     try:
-        # Use new InferenceClient (2025 Hugging Face API)
-        client = InferenceClient(token=api_key)
+        # Use new InferenceClient with proper timeout (2025 Hugging Face API)
+        client = InferenceClient(token=api_key, timeout=120)
 
         text = f"Stock movement prediction for {company_name} ({ticker}) currently trading at ${current_price}. Analyze technical patterns, market momentum, and provide price target range for next 30 days."
 
         print(f"FinMA: Calling Hugging Face InferenceClient for {ticker}...")
 
-        # Using FinBERT as proxy for FinMA
-        result = client.text_classification(
-            text,
-            model="ProsusAI/finbert"
-        )
+        try:
+            # Using FinBERT as proxy for FinMA
+            result = client.text_classification(
+                text,
+                model="ProsusAI/finbert"
+            )
+            print(f"FinMA: API Success! Result: {result}")
 
-        print(f"FinMA: API Success! Result: {result}")
+        except Exception as api_error:
+            error_str = str(api_error)
+            print(f"FinMA: API call failed: {error_str}")
+
+            if "loading" in error_str.lower() or "503" in error_str:
+                return {
+                    'movement_direction': 'Neutral',
+                    'confidence_score': 0.50,
+                    'price_target_low': round(current_price * 0.98, 2),
+                    'price_target_high': round(current_price * 1.02, 2),
+                    'timeframe': '30 days',
+                    'key_factors': f'FinMA model warming up for {ticker}. Try again in 30 seconds.',
+                    'volatility_assessment': 'Model loading'
+                }
+
+            return {
+                'movement_direction': 'Neutral',
+                'confidence_score': 0.50,
+                'price_target_low': round(current_price * 0.98, 2),
+                'price_target_high': round(current_price * 1.02, 2),
+                'timeframe': '30 days',
+                'key_factors': f'FinMA error: {error_str[:100]}',
+                'volatility_assessment': 'API temporarily unavailable'
+            }
 
         if result and len(result) > 0:
             top_sentiment = max(result, key=lambda x: x['score'])

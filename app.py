@@ -582,7 +582,15 @@ def call_fingpt_sentiment(ticker, company_name, current_price, news_context=""):
 
         headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
         print(f"FinGPT: Calling Hugging Face API for {ticker}...")
-        response = requests.post(API_URL, headers=headers, json={"inputs": text}, timeout=30)
+
+        # First attempt - may get 503 if model is loading
+        response = requests.post(API_URL, headers=headers, json={"inputs": text}, timeout=60)
+
+        # If model is loading (503), wait and retry once
+        if response.status_code == 503:
+            print(f"FinGPT: Model loading (503), waiting 20 seconds and retrying...")
+            time.sleep(20)
+            response = requests.post(API_URL, headers=headers, json={"inputs": text}, timeout=60)
 
         print(f"FinGPT: API Response Status: {response.status_code}")
 
@@ -667,7 +675,14 @@ def call_finbert_news(ticker, company_name, current_price):
         text = f"Latest news and market developments for {company_name} ({ticker}). Stock trading at ${current_price}. Evaluating news impact and market sentiment."
 
         headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-        response = requests.post(API_URL, headers=headers, json={"inputs": text}, timeout=30)
+        print(f"FinBERT: Calling Hugging Face API for {ticker}...")
+        response = requests.post(API_URL, headers=headers, json={"inputs": text}, timeout=60)
+
+        # If model is loading (503), wait and retry once
+        if response.status_code == 503:
+            print(f"FinBERT: Model loading (503), waiting 20 seconds and retrying...")
+            time.sleep(20)
+            response = requests.post(API_URL, headers=headers, json={"inputs": text}, timeout=60)
 
         if response.status_code == 200:
             result = response.json()
@@ -783,7 +798,14 @@ def call_finma_prediction(ticker, company_name, current_price):
         text = f"Stock movement prediction for {company_name} ({ticker}) currently trading at ${current_price}. Analyze technical patterns, market momentum, and provide price target range for next 30 days."
 
         headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-        response = requests.post(API_URL, headers=headers, json={"inputs": text}, timeout=30)
+        print(f"FinMA: Calling Hugging Face API for {ticker}...")
+        response = requests.post(API_URL, headers=headers, json={"inputs": text}, timeout=60)
+
+        # If model is loading (503), wait and retry once
+        if response.status_code == 503:
+            print(f"FinMA: Model loading (503), waiting 20 seconds and retrying...")
+            time.sleep(20)
+            response = requests.post(API_URL, headers=headers, json={"inputs": text}, timeout=60)
 
         if response.status_code == 200:
             result = response.json()

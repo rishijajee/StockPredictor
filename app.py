@@ -562,12 +562,15 @@ def call_fingpt_sentiment(ticker, company_name, current_price, news_context=""):
 
     if not api_key:
         # Fallback to rule-based analysis
+        print(f"FinGPT: No API key found for {ticker}")
         return {
             'sentiment': 'neutral',
             'confidence': 0.50,
             'price_prediction': 'Moderate stability expected with potential 0-2% movement',
             'summary': f'Technical analysis suggests {ticker} is showing mixed signals. Rule-based analysis (no LLM API key) indicates neutral positioning.'
         }
+
+    print(f"FinGPT: API key found (length: {len(api_key)})")
 
     try:
         # FinGPT model for financial sentiment and price prediction
@@ -578,10 +581,35 @@ def call_fingpt_sentiment(ticker, company_name, current_price, news_context=""):
         text = f"Analyzing {company_name} ({ticker}) stock priced at ${current_price}. Recent market activity and news sentiment for price movement prediction."
 
         headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+        print(f"FinGPT: Calling Hugging Face API for {ticker}...")
         response = requests.post(API_URL, headers=headers, json={"inputs": text}, timeout=30)
+
+        print(f"FinGPT: API Response Status: {response.status_code}")
+
+        if response.status_code == 503:
+            # Model is loading
+            print(f"FinGPT: Model is loading (503). This can take 20-30 seconds on first request.")
+            return {
+                'sentiment': 'neutral',
+                'confidence': 0.50,
+                'price_prediction': 'Model loading - please try again in 30 seconds',
+                'summary': f'FinGPT model is initializing. First request may take 20-30 seconds. Please refresh and try {ticker} again.'
+            }
+
+        if response.status_code != 200:
+            print(f"FinGPT: API Error Response: {response.text}")
+            error_msg = response.text[:200] if response.text else "Unknown error"
+            return {
+                'sentiment': 'neutral',
+                'confidence': 0.50,
+                'price_prediction': f'API Error ({response.status_code})',
+                'summary': f'FinGPT API error for {ticker}: {error_msg}'
+            }
 
         if response.status_code == 200:
             result = response.json()
+            print(f"FinGPT: API Success! Result: {result}")
+
             if isinstance(result, list) and len(result) > 0:
                 sentiments = result[0]
                 top_sentiment = max(sentiments, key=lambda x: x['score'])
@@ -604,12 +632,12 @@ def call_fingpt_sentiment(ticker, company_name, current_price, news_context=""):
                     'summary': f"FinGPT analysis shows {sentiment_label} sentiment for {ticker}. Market indicators suggest {price_pred.lower()}."
                 }
 
-        # Fallback if API fails
+        # Fallback if API response format unexpected
         return {
             'sentiment': 'neutral',
             'confidence': 0.50,
-            'price_prediction': 'Analysis unavailable - API timeout',
-            'summary': f'{ticker} analysis could not be completed. Please try again.'
+            'price_prediction': 'Unexpected API response format',
+            'summary': f'{ticker} analysis received unexpected response. Please try again.'
         }
 
     except Exception as e:

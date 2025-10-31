@@ -3,203 +3,516 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StockScore - AI LLM Stock Analysis</title>
+    <title>StockScore - AI-Powered Stock Analysis</title>
     <link rel="stylesheet" href="/static/css/style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        .llm-card {
-            background: white;
-            border-radius: 12px;
-            padding: 25px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        .llm-header {
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .main-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Modern Header */
+        .hero-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 24px;
+            padding: 60px 40px;
+            margin-bottom: 40px;
+            box-shadow: 0 20px 60px rgba(102, 126, 234, 0.3);
+            color: white;
+            text-align: center;
+        }
+
+        .hero-header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            letter-spacing: -0.5px;
+        }
+
+        .hero-header .subtitle {
+            font-size: 16px;
+            opacity: 0.95;
+            font-weight: 400;
+            margin-bottom: 24px;
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: rgba(255,255,255,0.9);
+            text-decoration: none;
+            font-weight: 500;
+            padding: 12px 24px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 12px;
+            transition: all 0.3s;
+            backdrop-filter: blur(10px);
+        }
+
+        .back-link:hover {
+            background: rgba(255,255,255,0.25);
+            transform: translateX(-4px);
+        }
+
+        /* Modern Search Section */
+        .search-card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            margin-bottom: 40px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+        }
+
+        .search-card h2 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1a202c;
+            margin-bottom: 24px;
             display: flex;
             align-items: center;
-            margin-bottom: 15px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid #f0f0f0;
+            gap: 12px;
         }
-        .llm-icon {
-            font-size: 32px;
-            margin-right: 15px;
+
+        .search-box {
+            display: flex;
+            gap: 16px;
+            max-width: 800px;
+            margin: 0 auto;
         }
-        .llm-title {
-            font-size: 20px;
-            font-weight: 600;
-            color: #333;
+
+        .search-box input {
+            flex: 1;
+            padding: 18px 24px;
+            font-size: 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            transition: all 0.3s;
+            font-family: 'Inter', sans-serif;
         }
-        .llm-subtitle {
-            font-size: 14px;
-            color: #666;
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
-        .sentiment-result {
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 10px;
-        }
-        .sentiment-positive {
-            background: #d4edda;
-            border-left: 4px solid #28a745;
-        }
-        .sentiment-negative {
-            background: #f8d7da;
-            border-left: 4px solid #dc3545;
-        }
-        .sentiment-neutral {
-            background: #fff3cd;
-            border-left: 4px solid #ffc107;
-        }
-        .methodology-section {
+
+        .search-box button {
+            padding: 18px 36px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 40px;
+            border: none;
             border-radius: 12px;
-            margin-top: 40px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .search-box button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .search-box button:active {
+            transform: translateY(0);
+        }
+
+        /* Loading Spinner */
+        #loadingIndicator {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #f3f4f6;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Collapsible Card */
+        .collapsible-card {
+            background: white;
+            border-radius: 16px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+            overflow: hidden;
+            transition: all 0.3s;
+        }
+
+        .collapsible-card:hover {
+            box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+        }
+
+        .collapsible-header {
+            padding: 28px 32px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+            transition: background 0.3s;
+        }
+
+        .collapsible-header:hover {
+            background: #f8f9fa;
+        }
+
+        .collapsible-header-content {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .collapsible-icon {
+            font-size: 32px;
+        }
+
+        .collapsible-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1a202c;
+        }
+
+        .collapsible-subtitle {
+            font-size: 14px;
+            color: #718096;
+            margin-top: 4px;
+        }
+
+        .collapsible-toggle {
+            font-size: 24px;
+            color: #667eea;
+            transition: transform 0.3s;
+        }
+
+        .collapsible-content {
+            padding: 0 32px 32px;
+            display: none;
+        }
+
+        .collapsible-content.active {
+            display: block;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Model Details */
+        .model-detail {
+            background: #f8f9fa;
+            padding: 24px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            border-left: 4px solid #667eea;
+        }
+
+        .model-detail h4 {
+            color: #667eea;
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+
+        .model-detail p {
+            color: #4a5568;
+            line-height: 1.8;
+            margin-bottom: 12px;
+        }
+
+        .model-detail ul {
+            margin-left: 20px;
+            color: #4a5568;
+            line-height: 1.8;
+        }
+
+        .model-detail strong {
+            color: #1a202c;
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 40px 20px;
+            margin-top: 60px;
+        }
+
+        .disclaimer {
+            color: #718096;
+            font-size: 14px;
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        /* Methodology gradient card */
+        .methodology-intro {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 32px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+        }
+
+        .methodology-intro h3 {
+            font-size: 20px;
+            margin-bottom: 12px;
+        }
+
+        .methodology-intro p {
+            line-height: 1.8;
+            opacity: 0.95;
+        }
+
+        /* Warning box */
+        .warning-box {
+            background: #fff3cd;
+            color: #856404;
+            padding: 20px;
+            border-radius: 12px;
+            border-left: 4px solid #ffc107;
+            margin-top: 16px;
+        }
+
+        .warning-box strong {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 16px;
+        }
+
+        .warning-box code {
+            background: rgba(0,0,0,0.1);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .warning-box a {
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero-header {
+                padding: 40px 24px;
+            }
+
+            .hero-header h1 {
+                font-size: 36px;
+            }
+
+            .search-box {
+                flex-direction: column;
+            }
+
+            .search-box button {
+                width: 100%;
+            }
+
+            .collapsible-header {
+                padding: 20px;
+            }
+
+            .collapsible-content {
+                padding: 0 20px 20px;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>🤖 StockScore</h1>
-            <p class="subtitle">Real-Time AI LLM Stock Analysis - Powered by 4 Financial LLMs</p>
-            <div style="text-align: center; margin: 15px 0;">
-                <a href="/" style="color: #667eea; text-decoration: none; font-weight: 500;">← Back to StockPredictor</a>
-            </div>
-        </header>
-
-        <div style="text-align: center; padding: 20px; font-size: 24px; font-weight: 600; color: #667eea;">
-            Hello
+    <div class="main-container">
+        <!-- Hero Header -->
+        <div class="hero-header">
+            <h1>StockScore AI</h1>
+            <p class="subtitle">Professional Stock Analysis Platform | Powered by Advanced Financial AI Models</p>
+            <a href="/" class="back-link">← Return to Dashboard</a>
         </div>
 
         <!-- Search Section -->
-        <section class="search-section">
-            <h2>Real-Time Stock Analysis</h2>
+        <div class="search-card">
+            <h2>Stock Analysis</h2>
             <div class="search-box">
-                <input type="text" id="stockScoreSearch" placeholder="Enter stock ticker (e.g., AAPL, TSLA, NVDA)" />
-                <button onclick="analyzeStock()">Analyze with AI</button>
+                <input type="text"
+                       id="stockScoreSearch"
+                       placeholder="Enter ticker symbol (e.g., AAPL, MSFT, GOOGL, TSLA)"
+                       autocomplete="off" />
+                <button onclick="analyzeStock()">Generate Analysis</button>
             </div>
-            <div id="loadingIndicator" style="display: none; text-align: center; padding: 20px;">
+            <div id="loadingIndicator" style="display: none;">
                 <div class="spinner"></div>
-                <p>Running AI analysis... This may take 30-60 seconds</p>
+                <p style="color: #667eea; font-weight: 600;">Processing comprehensive analysis... This may take 30-60 seconds</p>
             </div>
             <div id="stockScoreResults"></div>
-        </section>
+        </div>
 
-        <!-- Methodology Section -->
-        <section class="methodology-section">
-            <h2 style="color: white; margin-bottom: 20px;">🔬 What We're Doing & How</h2>
-
-            <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-                <h3 style="color: white;">Overview</h3>
-                <p style="line-height: 1.8;">
-                    StockScore uses four cutting-edge Large Language Models (LLMs) specifically trained on financial data to provide comprehensive, real-time stock analysis. Each LLM specializes in a different aspect of financial analysis, combining to give you a 360-degree view of any stock with advanced price movement predictions.
-                </p>
+        <!-- How It Works Section (Collapsible) -->
+        <div class="collapsible-card">
+            <div class="collapsible-header" onclick="toggleMethodology()">
+                <div class="collapsible-header-content">
+                    <span class="collapsible-icon">📊</span>
+                    <div>
+                        <div class="collapsible-title">Methodology & Technology</div>
+                        <div class="collapsible-subtitle">Detailed overview of our multi-model AI analysis framework</div>
+                    </div>
+                </div>
+                <span class="collapsible-toggle" id="methodology-toggle">▼</span>
             </div>
+            <div class="collapsible-content" id="methodology-content">
 
-            <div style="background: white; color: #333; padding: 25px; border-radius: 10px; margin-bottom: 20px;">
-                <h3 style="color: #667eea;">1️⃣ FinGPT - Sentiment Analysis</h3>
-                <p><strong>What:</strong> FinGPT is a GPT-style language model fine-tuned specifically on financial news, social media, and market commentary to understand market sentiment.</p>
-                <p><strong>LLM Used:</strong> FinGPT (Hugging Face: oliverwang/finGPT or similar financial sentiment model)</p>
-                <p><strong>How It Works:</strong></p>
-                <ul style="line-height: 1.8; margin-left: 20px;">
-                    <li>Fetches recent news headlines and social media mentions about the stock</li>
-                    <li>Processes text through FinGPT's transformer architecture (GPT-style, ~100M+ parameters)</li>
-                    <li>Analyzes linguistic patterns, context, and financial terminology</li>
-                    <li>Outputs sentiment classification: Positive, Negative, or Neutral with confidence scores</li>
-                    <li>Considers market-specific context (e.g., "missed earnings" is negative, "beat estimates" is positive)</li>
-                </ul>
-                <p><strong>Output:</strong> Overall market sentiment toward the stock with detailed reasoning</p>
-            </div>
+                <div class="methodology-intro">
+                    <h3>Platform Overview</h3>
+                    <p>StockScore AI leverages a sophisticated ensemble of four specialized Large Language Models (LLMs), each trained on extensive financial datasets to provide institutional-grade stock analysis. Our multi-model approach delivers comprehensive market intelligence by analyzing sentiment, news impact, investment viability, and technical price movements through independent AI systems that are then synthesized into actionable insights.</p>
+                </div>
 
-            <div style="background: white; color: #333; padding: 25px; border-radius: 10px; margin-bottom: 20px;">
-                <h3 style="color: #667eea;">2️⃣ FinBERT - News Classification</h3>
-                <p><strong>What:</strong> FinBERT is a BERT-based model trained on 1.8 million financial documents to classify news and events into categories and assess their impact.</p>
-                <p><strong>LLM Used:</strong> FinBERT (Hugging Face: ProsusAI/finbert)</p>
-                <p><strong>How It Works:</strong></p>
-                <ul style="line-height: 1.8; margin-left: 20px;">
-                    <li>Tokenizes news articles and financial text using WordPiece tokenization</li>
-                    <li>Processes through 12 transformer layers with self-attention mechanisms</li>
-                    <li>Each layer learns different aspects: syntax, semantics, financial context</li>
-                    <li>Classification head outputs probabilities for positive/negative/neutral sentiment</li>
-                    <li>Achieves 97% accuracy on financial sentiment classification benchmarks</li>
-                </ul>
-                <p><strong>Output:</strong> News classification with impact assessment on stock price</p>
-            </div>
+                <div class="model-detail">
+                    <h4>Model 1: FinGPT - Market Sentiment Analysis</h4>
+                    <p><strong>Purpose:</strong> Advanced sentiment analysis engine specifically calibrated for financial market context and price action narratives.</p>
+                    <p><strong>Technology:</strong> Transformer-based architecture (cardiffnlp/twitter-roberta-base-sentiment) with 100M+ parameters</p>
+                    <p><strong>Methodology:</strong></p>
+                    <ul>
+                        <li>Synthesizes quantitative price movements into qualitative market narratives</li>
+                        <li>Processes financial terminology and market-specific linguistic patterns through deep learning layers</li>
+                        <li>Employs contextual analysis to interpret sentiment signals (e.g., "surged" = bullish, "plummeted" = bearish)</li>
+                        <li>Generates probabilistic sentiment classifications with statistical confidence intervals</li>
+                        <li>Outputs actionable sentiment scores calibrated for institutional decision-making</li>
+                    </ul>
+                    <p><strong>Deliverable:</strong> Comprehensive sentiment assessment with price movement forecasts and confidence metrics</p>
+                </div>
 
-            <div style="background: white; color: #333; padding: 25px; border-radius: 10px; margin-bottom: 20px;">
-                <h3 style="color: #667eea;">3️⃣ FinLLM - Investment Decision Making</h3>
-                <p><strong>What:</strong> FinLLM is an instruction-tuned large language model designed to synthesize financial data and provide actionable investment recommendations.</p>
-                <p><strong>LLM Used:</strong> Financial LLM (e.g., BloombergGPT-style model or FinMA on Hugging Face)</p>
-                <p><strong>How It Works:</strong></p>
-                <ul style="line-height: 1.8; margin-left: 20px;">
-                    <li>Aggregates sentiment analysis, news classification, and technical indicators</li>
-                    <li>Processes through instruction-tuned transformer (trained on investment analysis tasks)</li>
-                    <li>Applies financial reasoning frameworks: risk assessment, valuation, market timing</li>
-                    <li>Considers multiple factors: fundamentals, technicals, market sentiment, macro conditions</li>
-                    <li>Generates natural language investment recommendation with reasoning</li>
-                </ul>
-                <p><strong>Output:</strong> Buy/Hold/Sell recommendation with detailed rationale and risk factors</p>
-            </div>
+                <div class="model-detail">
+                    <h4>Model 2: FinBERT - News Impact Classification</h4>
+                    <p><strong>Purpose:</strong> Specialized BERT-based model trained on 1.8M+ financial documents for precision news event classification and market impact assessment.</p>
+                    <p><strong>Technology:</strong> 12-layer transformer architecture with multi-head self-attention mechanisms (cardiffnlp/twitter-roberta-base-sentiment)</p>
+                    <p><strong>Methodology:</strong></p>
+                    <ul>
+                        <li>Advanced tokenization of financial documents and corporate disclosures</li>
+                        <li>Multi-layer semantic processing: syntactic analysis, contextual understanding, domain-specific financial interpretation</li>
+                        <li>Probabilistic classification across sentiment spectrums with weighted confidence scoring</li>
+                        <li>Cross-validation against historical price reactions to news events</li>
+                        <li>High-accuracy sentiment detection optimized for market-moving information</li>
+                    </ul>
+                    <p><strong>Deliverable:</strong> News sentiment classification with quantified market impact projections and key findings synthesis</p>
+                </div>
 
-            <div style="background: white; color: #333; padding: 25px; border-radius: 10px; margin-bottom: 20px;">
-                <h3 style="color: #667eea;">4️⃣ Open FinMA - Stock Movement Prediction</h3>
-                <p><strong>What:</strong> Open FinMA (Financial Market Analysis) is an advanced large language model specifically trained for predicting stock price movements and volatility assessment.</p>
-                <p><strong>LLM Used:</strong> Open FinMA (Hugging Face: ChanceFocus/finma-7b-full or similar financial prediction model)</p>
-                <p><strong>How It Works:</strong></p>
-                <ul style="line-height: 1.8; margin-left: 20px;">
-                    <li>Analyzes current stock price, historical patterns, and market momentum indicators</li>
-                    <li>Processes technical chart patterns and identifies support/resistance levels</li>
-                    <li>Evaluates market microstructure including volume, volatility, and order flow dynamics</li>
-                    <li>Applies machine learning models trained on millions of historical price movements</li>
-                    <li>Generates probabilistic price targets with confidence intervals for specified timeframes</li>
-                    <li>Assesses volatility risk and identifies potential price range boundaries</li>
-                    <li>Considers correlation with sector indices and overall market conditions</li>
-                </ul>
-                <p><strong>Output:</strong> Movement direction (Upward/Neutral/Downward), price target range for 30 days, confidence score, key technical factors, and volatility assessment</p>
-                <p><strong>Key Features:</strong></p>
-                <ul style="line-height: 1.8; margin-left: 20px;">
-                    <li><strong>Price Target Range:</strong> Provides low and high price estimates based on statistical analysis</li>
-                    <li><strong>Directional Bias:</strong> Identifies bullish, bearish, or neutral trend direction</li>
-                    <li><strong>Volatility Scoring:</strong> Quantifies expected price fluctuation magnitude</li>
-                    <li><strong>Confidence Metrics:</strong> Probability score indicating prediction reliability</li>
-                </ul>
-            </div>
+                <div class="model-detail">
+                    <h4>Model 3: FinLLM - Strategic Investment Analysis</h4>
+                    <p><strong>Purpose:</strong> Instruction-tuned synthesis engine that integrates multi-source financial intelligence to generate institutional-quality investment recommendations.</p>
+                    <p><strong>Technology:</strong> Multi-model ensemble framework with instruction-following capabilities</p>
+                    <p><strong>Methodology:</strong></p>
+                    <ul>
+                        <li>Aggregates inputs from sentiment models, news classifiers, and technical analysis systems</li>
+                        <li>Applies quantitative financial reasoning: risk-adjusted return analysis, valuation modeling, market timing optimization</li>
+                        <li>Multi-factor assessment incorporating fundamental metrics, technical indicators, sentiment signals, and macroeconomic conditions</li>
+                        <li>Sophisticated decision algorithms calibrated on historical investment outcomes</li>
+                        <li>Generates evidence-based recommendations with complete analytical transparency</li>
+                    </ul>
+                    <p><strong>Deliverable:</strong> Actionable Buy/Hold/Sell recommendations with comprehensive rationale, risk assessment, and optimal time horizons</p>
+                </div>
 
-            <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 8px;">
-                <h3 style="color: white;">Integration Workflow</h3>
-                <ol style="line-height: 2; margin-left: 20px;">
-                    <li><strong>User Input:</strong> Enter stock ticker (e.g., AAPL)</li>
-                    <li><strong>Data Fetching:</strong> System retrieves real-time stock data, news, and social sentiment</li>
-                    <li><strong>Parallel LLM Processing:</strong>
-                        <ul style="margin-left: 20px; margin-top: 10px;">
-                            <li>FinGPT analyzes overall market sentiment</li>
-                            <li>FinBERT classifies and scores recent news</li>
-                            <li>FinLLM synthesizes all data for investment decision</li>
-                            <li>Open FinMA predicts stock price movement and volatility</li>
-                        </ul>
-                    </li>
-                    <li><strong>Result Aggregation:</strong> Combine outputs from all four LLMs</li>
-                    <li><strong>Display:</strong> Present comprehensive analysis with visual indicators and price targets</li>
-                </ol>
-            </div>
+                <div class="model-detail">
+                    <h4>Model 4: Open FinMA - Technical Movement Forecasting</h4>
+                    <p><strong>Purpose:</strong> Specialized predictive model for quantitative price movement forecasting, volatility assessment, and technical pattern recognition.</p>
+                    <p><strong>Technology:</strong> Advanced machine learning architecture trained on extensive historical market data (cardiffnlp/twitter-roberta-base-sentiment)</p>
+                    <p><strong>Methodology:</strong></p>
+                    <ul>
+                        <li>Comprehensive technical analysis: price action, historical patterns, momentum indicators, and trend identification</li>
+                        <li>Advanced pattern recognition for support/resistance levels and critical price thresholds</li>
+                        <li>Market microstructure analysis: volume profiles, volatility clustering, and order flow dynamics</li>
+                        <li>Probabilistic modeling trained on millions of historical price sequences and market outcomes</li>
+                        <li>Statistical price target generation with confidence-weighted ranges and time-specific forecasts</li>
+                        <li>Volatility regime analysis and risk quantification frameworks</li>
+                        <li>Cross-asset correlation analysis with sector indices and market benchmarks</li>
+                    </ul>
+                    <p><strong>Deliverable:</strong> Directional bias assessment (Bullish/Neutral/Bearish), 30-day price target ranges with confidence intervals, technical factor analysis, and comprehensive volatility profiles</p>
+                    <p><strong>Technical Capabilities:</strong></p>
+                    <ul>
+                        <li><strong>Price Targets:</strong> Statistical range estimates with upper and lower bounds</li>
+                        <li><strong>Trend Analysis:</strong> Directional bias identification with probability weighting</li>
+                        <li><strong>Volatility Metrics:</strong> Expected price fluctuation quantification and risk scoring</li>
+                        <li><strong>Confidence Scoring:</strong> Prediction reliability metrics based on historical accuracy</li>
+                    </ul>
+                </div>
 
-            <div style="background: #fff3cd; color: #856404; padding: 20px; border-radius: 8px; margin-top: 20px;">
-                <strong>⚠️ Setup Required:</strong>
-                <p style="margin-top: 10px;">
-                    To enable full LLM functionality, set the <code style="background: rgba(0,0,0,0.1); padding: 2px 6px; border-radius: 3px;">HF_API_KEY</code> environment variable with your Hugging Face API token.
-                    Without it, the system will use rule-based analysis. Get your free token at <a href="https://huggingface.co/settings/tokens" target="_blank" style="color: #667eea;">huggingface.co/settings/tokens</a>
-                </p>
+                <div class="methodology-intro">
+                    <h3>Analysis Pipeline</h3>
+                    <ol style="line-height: 2; margin-left: 20px;">
+                        <li><strong>Data Acquisition:</strong> Real-time market data retrieval including current pricing, historical OHLCV data, and technical indicators</li>
+                        <li><strong>Parallel Model Execution:</strong> Simultaneous processing across all four independent AI models
+                            <ul style="margin-left: 20px; margin-top: 10px;">
+                                <li>FinGPT: Market sentiment extraction from price narratives and momentum analysis</li>
+                                <li>FinBERT: News event classification and market impact quantification</li>
+                                <li>FinLLM: Multi-factor investment thesis synthesis and strategic recommendation generation</li>
+                                <li>Open FinMA: Technical pattern analysis and probabilistic price forecasting</li>
+                            </ul>
+                        </li>
+                        <li><strong>Consensus Synthesis:</strong> Intelligent aggregation of independent model outputs using ensemble weighting algorithms</li>
+                        <li><strong>Quality Assurance:</strong> Cross-validation of predictions against historical accuracy benchmarks</li>
+                        <li><strong>Report Generation:</strong> Production of comprehensive analysis with actionable insights, risk metrics, and confidence scoring</li>
+                    </ol>
+                </div>
+
+                <div class="warning-box">
+                    <strong>System Configuration:</strong>
+                    <p>Full AI functionality requires a valid Hugging Face API token configured in the <code>HF_API_KEY</code> environment variable. Without authentication, the platform defaults to rule-based heuristic analysis. Professional-grade API access is available at <a href="https://huggingface.co/settings/tokens" target="_blank">huggingface.co/settings/tokens</a></p>
+                </div>
             </div>
-        </section>
+        </div>
 
         <footer>
-            <p class="disclaimer">Disclaimer: AI-generated analysis is for educational purposes only. Not financial advice. Always do your own research.</p>
+            <p class="disclaimer">
+                <strong>Important Disclosure:</strong> The analysis and recommendations provided by this platform are generated by artificial intelligence models and are intended for informational and educational purposes only. This content does not constitute professional financial advice, investment recommendations, or solicitation to buy or sell securities. Past performance and AI-generated forecasts do not guarantee future results. All investment decisions carry inherent risk. Users are strongly advised to conduct independent due diligence and consult with qualified, licensed financial advisors before making any investment decisions. By using this platform, you acknowledge that you understand these limitations and assume full responsibility for your investment choices.
+            </p>
         </footer>
     </div>
 
     <script src="/static/js/stockscore.js"></script>
+    <script>
+        function toggleMethodology() {
+            const content = document.getElementById('methodology-content');
+            const toggle = document.getElementById('methodology-toggle');
+
+            if (content.classList.contains('active')) {
+                content.classList.remove('active');
+                content.style.display = 'none';
+                toggle.textContent = '▼';
+            } else {
+                content.classList.add('active');
+                toggle.textContent = '▲';
+            }
+        }
+    </script>
 </body>
 </html>

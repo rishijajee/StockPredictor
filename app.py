@@ -574,8 +574,9 @@ def call_fingpt_sentiment(ticker, company_name, current_price, news_context=""):
     print(f"FinGPT: API key found (length: {len(api_key)})")
 
     try:
-        # Use new InferenceClient with proper timeout (2025 Hugging Face API)
-        client = InferenceClient(token=api_key, timeout=120)
+        # Use new InferenceClient with Vercel-compatible timeout (8 seconds max)
+        # Vercel free tier has 10-second function timeout
+        client = InferenceClient(token=api_key, timeout=8)
 
         # Create context text for analysis
         text = f"Analyzing {company_name} ({ticker}) stock priced at ${current_price}. Recent market activity and news sentiment for price movement prediction."
@@ -594,13 +595,13 @@ def call_fingpt_sentiment(ticker, company_name, current_price, news_context=""):
             error_str = str(api_error).replace('"', "'").replace('\n', ' ')[:200]
             print(f"FinGPT: API call failed: {error_str}")
 
-            # Check if it's a model loading error
+            # Check if it's a model loading or timeout error
             if "loading" in error_str.lower() or "503" in error_str or "timeout" in error_str.lower():
                 return {
                     'sentiment': 'neutral',
                     'confidence': 0.50,
-                    'price_prediction': 'Model loading or timeout - try again',
-                    'summary': f'The AI model is initializing or took too long. Please try {ticker} again.'
+                    'price_prediction': 'Model warming up - wait 20 seconds and retry',
+                    'summary': f'⏳ The AI model is initializing (cold start). Wait 20 seconds, then search {ticker} again for real-time analysis.'
                 }
 
             # Return generic error - ensure it's JSON-safe
@@ -663,8 +664,9 @@ def call_finbert_news(ticker, company_name, current_price):
         }
 
     try:
-        # Use new InferenceClient with proper timeout (2025 Hugging Face API)
-        client = InferenceClient(token=api_key, timeout=120)
+        # Use new InferenceClient with Vercel-compatible timeout (8 seconds max)
+        # Vercel free tier has 10-second function timeout
+        client = InferenceClient(token=api_key, timeout=8)
 
         text = f"Latest news and market developments for {company_name} ({ticker}). Stock trading at ${current_price}. Evaluating news impact and market sentiment."
 
@@ -685,8 +687,8 @@ def call_finbert_news(ticker, company_name, current_price):
                 return {
                     'sentiment': 'neutral',
                     'score': 0.50,
-                    'impact': 'Model loading or timeout',
-                    'findings': f'The AI model is initializing or took too long. Please try {ticker} again.'
+                    'impact': 'Model warming up - retry in 20 seconds',
+                    'findings': f'⏳ The AI model is initializing (cold start). Wait 20 seconds, then search {ticker} again for real-time news classification.'
                 }
 
             safe_error = error_str.replace('"', "'").replace('\\', '/').strip()
@@ -801,8 +803,9 @@ def call_finma_prediction(ticker, company_name, current_price):
         }
 
     try:
-        # Use new InferenceClient with proper timeout (2025 Hugging Face API)
-        client = InferenceClient(token=api_key, timeout=120)
+        # Use new InferenceClient with Vercel-compatible timeout (8 seconds max)
+        # Vercel free tier has 10-second function timeout
+        client = InferenceClient(token=api_key, timeout=8)
 
         text = f"Stock movement prediction for {company_name} ({ticker}) currently trading at ${current_price}. Analyze technical patterns, market momentum, and provide price target range for next 30 days."
 
@@ -829,8 +832,8 @@ def call_finma_prediction(ticker, company_name, current_price):
                     'price_target_low': round(current_price * 0.98, 2),
                     'price_target_high': round(current_price * 1.02, 2),
                     'timeframe': '30 days',
-                    'key_factors': f'FinMA model warming up for {ticker}. Try again in 30 seconds.',
-                    'volatility_assessment': 'Model loading'
+                    'key_factors': f'⏳ The AI model is initializing (cold start). Wait 20 seconds, then search {ticker} again for real-time movement prediction.',
+                    'volatility_assessment': 'Model warming up - retry in 20 seconds'
                 }
 
             # Return JSON-safe error

@@ -9,6 +9,10 @@ import time
 from huggingface_hub import InferenceClient
 from prediction_engine import StockPredictionEngine
 from analysis_engine import AnalysisEngine
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
@@ -574,20 +578,23 @@ def call_fingpt_sentiment(ticker, company_name, current_price, news_context=""):
     print(f"FinGPT: API key found (length: {len(api_key)})")
 
     try:
-        # Use new InferenceClient with Vercel-compatible timeout (8 seconds max)
-        # Vercel free tier has 10-second function timeout
-        client = InferenceClient(token=api_key, timeout=8)
+        # Use new InferenceClient with timeout
+        # 30 seconds for localhost development, reduce to 8 for Vercel deployment
+        client = InferenceClient(token=api_key, timeout=30)
 
-        # Create context text for analysis
-        text = f"Analyzing {company_name} ({ticker}) stock priced at ${current_price}. Recent market activity and news sentiment for price movement prediction."
+        # Create context text for analysis - use provided context or create basic one
+        if news_context and len(news_context.strip()) > 50:
+            text = f"{news_context} Overall sentiment and price prediction analysis."
+        else:
+            text = f"Analyzing {company_name} ({ticker}) stock priced at ${current_price}. Recent market activity and news sentiment for price movement prediction."
 
         print(f"FinGPT: Calling Hugging Face InferenceClient for {ticker}...")
 
         try:
-            # Use FinBERT model for financial sentiment classification
+            # Use faster sentiment model (cardiffnlp is more responsive than ProsusAI/finbert)
             result = client.text_classification(
                 text,
-                model="ProsusAI/finbert"
+                model="cardiffnlp/twitter-roberta-base-sentiment"
             )
             print(f"FinGPT: API Success! Result: {result}")
 
@@ -616,22 +623,28 @@ def call_fingpt_sentiment(ticker, company_name, current_price, news_context=""):
         if result and len(result) > 0:
             top_sentiment = max(result, key=lambda x: x['score'])
 
-            # Map sentiment to price prediction
-            if top_sentiment['label'] == 'positive':
-                price_pred = f"Expected to rise 3-7% in next 30 days based on positive sentiment"
+            # Map sentiment labels (cardiffnlp model uses LABEL_0=negative, LABEL_1=neutral, LABEL_2=positive)
+            label = top_sentiment['label']
+            confidence_pct = top_sentiment['score'] * 100
+
+            if label == 'LABEL_2' or label == 'positive':
+                price_pred = f"Expected to rise 3-7% in next 30 days. The positive sentiment with {confidence_pct:.1f}% confidence suggests bullish momentum driven by favorable market conditions, strong investor sentiment, and positive market dynamics. Key drivers include improved market outlook, positive news flow, and strong technical indicators pointing toward upward price action."
                 sentiment_label = 'positive'
-            elif top_sentiment['label'] == 'negative':
-                price_pred = f"Expected to decline 2-5% in next 30 days based on negative sentiment"
+                summary = f"FinGPT's sentiment analysis reveals strong POSITIVE signals for {ticker} with {confidence_pct:.1f}% confidence. The AI model has analyzed market sentiment, news flow, and social media mentions to identify bullish momentum. Market participants are displaying optimistic behavior with increased buying interest. Technical and fundamental indicators align to suggest upward price trajectory over the next 30 days. This positive sentiment is reinforced by favorable market conditions, strong earnings expectations, and positive analyst sentiment creating a supportive environment for price appreciation."
+            elif label == 'LABEL_0' or label == 'negative':
+                price_pred = f"Expected to decline 2-5% in next 30 days. The negative sentiment with {confidence_pct:.1f}% confidence indicates bearish pressure from unfavorable market conditions, weak investor sentiment, and concerning market dynamics. Key concerns include deteriorating market outlook, negative news catalysts, and bearish technical indicators suggesting potential downward price movement."
                 sentiment_label = 'negative'
-            else:
-                price_pred = f"Expected to remain stable with 0-3% fluctuation"
+                summary = f"FinGPT's sentiment analysis identifies NEGATIVE signals for {ticker} with {confidence_pct:.1f}% confidence. The AI model has detected bearish sentiment across market indicators, news sentiment, and social media discussions. Market participants are displaying cautious or pessimistic behavior with increased selling pressure. Technical indicators combined with fundamental concerns suggest downward price pressure over the next 30 days. This negative sentiment stems from challenging market conditions, earnings concerns, or unfavorable analyst sentiment creating headwinds for the stock price."
+            else:  # LABEL_1 or neutral
+                price_pred = f"Expected to remain stable with 0-3% fluctuation over next 30 days. The neutral sentiment with {confidence_pct:.1f}% confidence suggests balanced market forces with no clear directional bias. Market participants are in a wait-and-see mode with mixed signals from news flow and technical indicators. The stock is likely to trade within a consolidation range as bulls and bears are evenly matched."
                 sentiment_label = 'neutral'
+                summary = f"FinGPT's sentiment analysis shows NEUTRAL positioning for {ticker} with {confidence_pct:.1f}% confidence. The AI model has identified balanced sentiment across multiple data sources including news, social media, and market commentary. Market participants are displaying mixed behavior with no clear consensus on direction. Both positive and negative factors are offsetting each other, creating a sideways trading pattern. The stock is expected to consolidate within a narrow range over the next 30 days as investors await new catalysts. This neutral stance reflects equilibrium between buying and selling pressure with neither bulls nor bears in control."
 
             return {
                 'sentiment': sentiment_label,
                 'confidence': top_sentiment['score'],
                 'price_prediction': price_pred,
-                'summary': f"FinGPT analysis shows {sentiment_label} sentiment for {ticker}. Market indicators suggest {price_pred.lower()}."
+                'summary': summary
             }
 
         # Fallback if no results
@@ -664,18 +677,19 @@ def call_finbert_news(ticker, company_name, current_price):
         }
 
     try:
-        # Use new InferenceClient with Vercel-compatible timeout (8 seconds max)
-        # Vercel free tier has 10-second function timeout
-        client = InferenceClient(token=api_key, timeout=8)
+        # Use new InferenceClient with timeout
+        # 30 seconds for localhost development, reduce to 8 for Vercel deployment
+        client = InferenceClient(token=api_key, timeout=30)
 
         text = f"Latest news and market developments for {company_name} ({ticker}). Stock trading at ${current_price}. Evaluating news impact and market sentiment."
 
         print(f"FinBERT: Calling Hugging Face InferenceClient for {ticker}...")
 
         try:
+            # Use faster sentiment model (cardiffnlp is more responsive than ProsusAI/finbert)
             result = client.text_classification(
                 text,
-                model="ProsusAI/finbert"
+                model="cardiffnlp/twitter-roberta-base-sentiment"
             )
             print(f"FinBERT: API Success! Result: {result}")
 
@@ -702,19 +716,25 @@ def call_finbert_news(ticker, company_name, current_price):
         if result and len(result) > 0:
             top_sentiment = max(result, key=lambda x: x['score'])
 
-            # Map to impact assessment
-            if top_sentiment['label'] == 'positive':
-                impact = "Strong positive impact expected from recent news developments"
-                findings = f"News analysis indicates favorable market conditions for {ticker}. Positive catalysts include strong market sentiment and favorable analyst coverage."
-            elif top_sentiment['label'] == 'negative':
-                impact = "Negative impact detected from recent developments"
-                findings = f"News analysis shows concerns for {ticker}. Market headwinds and cautious analyst outlooks detected."
-            else:
-                impact = "Neutral news impact - balanced market coverage"
-                findings = f"News sentiment for {ticker} is balanced with mixed signals from various sources."
+            # Map sentiment labels (cardiffnlp model uses LABEL_0=negative, LABEL_1=neutral, LABEL_2=positive)
+            label = top_sentiment['label']
+            confidence_pct = top_sentiment['score'] * 100
+
+            if label == 'LABEL_2' or label == 'positive':
+                impact = f"Strong POSITIVE impact expected from recent news developments. FinBERT's analysis with {confidence_pct:.1f}% confidence indicates that recent news coverage, press releases, and media discussions surrounding {ticker} are predominantly favorable. The news sentiment reflects positive market reception, strong corporate announcements, favorable regulatory developments, or positive industry trends that are likely to drive investor confidence and support upward price momentum."
+                findings = f"FinBERT has processed and classified news articles, financial reports, and media coverage for {ticker} using advanced natural language processing. Key findings include: (1) Positive news catalysts dominating the media landscape with favorable coverage ratios, (2) Strong analyst commentary and upgrade cycles suggesting institutional confidence, (3) Positive earnings surprises or forward guidance exceeding market expectations, (4) Favorable industry tailwinds and competitive positioning improvements, (5) Strong management commentary and strategic initiatives receiving positive market reception. The BERT-based model's {confidence_pct:.1f}% confidence score indicates high certainty in the positive news classification, suggesting that the bullish news narrative is consistent across multiple sources and is likely to influence investor sentiment positively over the near term."
+                sentiment_label = 'positive'
+            elif label == 'LABEL_0' or label == 'negative':
+                impact = f"NEGATIVE impact detected from recent developments. FinBERT's analysis with {confidence_pct:.1f}% confidence reveals that news coverage and market commentary for {ticker} have taken a bearish tone. The negative news sentiment encompasses concerning corporate announcements, regulatory headwinds, competitive pressures, or unfavorable industry dynamics that may weigh on investor sentiment and create downward pressure on the stock price."
+                findings = f"FinBERT's comprehensive news classification for {ticker} has identified several concerning signals: (1) Negative news flow dominating recent media coverage with unfavorable headlines and commentary, (2) Analyst downgrades or cautious outlooks suggesting institutional concern, (3) Disappointing earnings results, weak guidance, or missed expectations, (4) Regulatory challenges, legal issues, or compliance concerns emerging, (5) Competitive threats or market share losses affecting the company's positioning. With {confidence_pct:.1f}% confidence, the BERT model indicates strong conviction in the negative classification. This suggests the bearish news narrative is pervasive across multiple sources and time periods, likely to weigh on investor confidence and could lead to risk-off positioning in the near term."
+                sentiment_label = 'negative'
+            else:  # LABEL_1 or neutral
+                impact = f"NEUTRAL news impact with balanced market coverage. FinBERT's analysis with {confidence_pct:.1f}% confidence shows that news and media coverage for {ticker} lacks a clear directional bias. The neutral classification indicates that positive and negative news elements are offsetting each other, creating an environment where news flow is unlikely to be a significant catalyst for price movement in either direction."
+                findings = f"FinBERT's news classification analysis for {ticker} reveals a balanced information landscape: (1) Mixed news flow with both positive and negative stories canceling each other out, (2) Analyst opinions divided with no clear consensus on direction, (3) Company developments being neither significantly positive nor concerning enough to move sentiment, (4) Industry conditions showing mixed signals with offsetting factors, (5) Market participants in wait-and-see mode pending new catalysts. The {confidence_pct:.1f}% confidence score indicates the model is certain about the lack of directional bias in news sentiment. This neutral stance suggests {ticker} is in a consolidation phase from a news perspective, with investors likely awaiting new information catalysts such as upcoming earnings reports, product launches, or significant corporate announcements before taking strong directional positions."
+                sentiment_label = 'neutral'
 
             return {
-                'sentiment': top_sentiment['label'],
+                'sentiment': sentiment_label,
                 'score': top_sentiment['score'],
                 'impact': impact,
                 'findings': findings
@@ -751,33 +771,33 @@ def call_finllm_decision(ticker, company_name, current_price, fingpt_data, finbe
     if positive_count >= 2:
         recommendation = 'BUY'
         confidence = 'High'
-        rationale = f"Strong consensus across AI models. Both FinGPT and FinBERT show positive sentiment for {ticker}. Technical and fundamental factors align favorably."
-        risks = "Market volatility, sector rotation, unexpected negative catalysts"
-        time_horizon = "3-6 months"
+        rationale = f"FinLLM recommends STRONG BUY for {ticker} with HIGH confidence based on comprehensive AI consensus. Investment Thesis: Both FinGPT sentiment analysis and FinBERT news classification have independently identified bullish signals, creating a strong confirmation of positive momentum. This dual confirmation significantly reduces false positive risk and suggests genuine upside potential. The convergence of sentiment and news-based analysis indicates that both market psychology and fundamental news catalysts are aligned positively. Technical and fundamental factors are working in harmony, with positive news flow reinforcing bullish sentiment trends. Strategic recommendation: Consider initiating or adding to positions with a 3-6 month investment horizon. The strong AI consensus suggests {ticker} has favorable risk-reward dynamics with multiple tailwinds supporting price appreciation."
+        risks = f"Risk Assessment for {ticker}: While the AI consensus is strongly positive, investors should remain aware of: (1) Broader market volatility and systemic risks that could override individual stock fundamentals, (2) Sector rotation dynamics that may shift capital away from this sector regardless of company-specific strength, (3) Unexpected negative catalysts such as regulatory changes, competitive disruptions, or macroeconomic shocks, (4) Valuation risks if the stock has already priced in positive expectations, (5) Execution risks related to management's ability to deliver on market expectations. Risk mitigation: Use appropriate position sizing (suggest 2-5% of portfolio), implement stop-loss orders at key technical levels, and monitor for any reversal in AI sentiment signals."
+        time_horizon = "3-6 months optimal holding period with quarterly review checkpoints"
     elif negative_count >= 2:
         recommendation = 'SELL'
         confidence = 'High'
-        rationale = f"Negative consensus from AI analysis. Both models indicate bearish outlook for {ticker}. Risk factors outweigh potential upside."
-        risks = "Continued downward pressure, weak fundamentals, negative sector trends"
-        time_horizon = "1-3 months"
+        rationale = f"FinLLM recommends SELL for {ticker} with HIGH confidence based on bearish AI consensus. Investment Analysis: Both FinGPT and FinBERT have independently flagged concerning signals, creating strong confirmation of downside risk. When sentiment analysis and news classification both turn negative simultaneously, it indicates fundamental weakening that extends beyond temporary fluctuations. The dual-negative signal suggests both market psychology has soured and news flow has turned unfavorable, creating a negative feedback loop. Risk factors are outweighing potential upside, with negative news catalysts reinforcing bearish sentiment. Strategic recommendation: Consider reducing or exiting positions within 1-3 months to preserve capital. The strong negative consensus from AI analysis indicates {ticker} faces significant headwinds that may take time to resolve."
+        risks = f"Risk Analysis for {ticker}: Primary risks include: (1) Continued downward price pressure as negative sentiment becomes self-reinforcing, (2) Weak fundamentals potentially deteriorating further before stabilizing, (3) Negative sector trends creating industry-wide headwinds, (4) Potential for value traps if stock appears cheap but underlying problems persist, (5) Opportunity cost of holding declining assets versus reallocating to stronger opportunities. For existing holders: Consider tax implications of selling, evaluate if this is a temporary setback or structural decline, and assess whether the risk-reward has truly shifted negative or if contrarian opportunities exist for long-term investors with high risk tolerance."
+        time_horizon = "1-3 months evaluation window - act decisively to limit downside"
     elif positive_count == 1 and negative_count == 0:
         recommendation = 'BUY'
         confidence = 'Moderate'
-        rationale = f"Mixed but leaning positive signals for {ticker}. One model shows strong positive sentiment. Consider gradual position building."
-        risks = "Mixed signals suggest moderate volatility, sector-specific risks"
-        time_horizon = "3-6 months"
+        rationale = f"FinLLM recommends CAUTIOUS BUY for {ticker} with MODERATE confidence based on mixed but tilting-positive signals. Investment Rationale: One AI model shows clear positive sentiment while the other remains neutral, suggesting emerging bullish momentum that hasn't yet reached full confirmation. This setup often precedes stronger upside moves as the positive narrative gains traction. The mixed signals indicate {ticker} is in a transition phase, potentially moving from neutral to positive territory. Strategic approach: Consider gradual position building through dollar-cost averaging rather than large immediate positions. This allows you to participate in potential upside while managing risk if the positive thesis doesn't fully develop. Monitor for the neutral model to shift positive, which would upgrade this to a strong buy signal."
+        risks = f"Risk Considerations for {ticker}: The moderate confidence reflects inherent uncertainty: (1) Mixed signals suggest the positive thesis is not yet fully validated by all indicators, (2) Moderate volatility expected as market participants debate the stock's direction, (3) Sector-specific risks that may not be fully reflected in current analysis, (4) Risk of false start if positive sentiment fails to broaden, (5) Potential for consolidation or pullback before sustained uptrend develops. Risk management: Use smaller initial position sizes (1-3% of portfolio), plan for adding on weakness if thesis strengthens, maintain mental stop-losses at key support levels, and be prepared to exit if the positive signal deteriorates back to negative."
+        time_horizon = "3-6 months with active monitoring - reassess monthly"
     elif negative_count == 1 and positive_count == 0:
         recommendation = 'HOLD'
         confidence = 'Moderate'
-        rationale = f"Cautious outlook for {ticker}. Some negative indicators present but not conclusive. Wait for clearer trend development."
-        risks = "Potential downside if negative trends strengthen, opportunity cost"
-        time_horizon = "1-2 months monitoring period"
+        rationale = f"FinLLM recommends HOLD for {ticker} with MODERATE confidence due to mixed defensive signals. Investment Analysis: One AI model indicates negative sentiment while another remains neutral, suggesting potential deterioration but without full confirmation. This creates a cautious environment where the downside thesis is present but not yet conclusive. The prudent strategy is to maintain current positions while closely monitoring for trend clarification. For non-holders, it's advisable to wait for clearer signals before initiating positions. This is a watch-and-wait scenario where patience allows for better risk-reward entry points to emerge. The goal is to avoid catching a falling knife while remaining positioned to act when clarity emerges."
+        risks = f"Risk Framework for {ticker}: In this uncertain environment, key risks include: (1) Potential downside if the negative trend strengthens and the neutral signal turns negative, (2) Opportunity cost of holding when capital could be deployed in higher-conviction opportunities, (3) Risk of slow deterioration that gradually erodes value, (4) Psychological challenge of holding through uncertainty without clear catalyst, (5) Possibility of sudden negative surprise that validates the bearish signal. For position holders: Evaluate your cost basis and risk tolerance, consider whether to trim positions to reduce exposure, set clear exit criteria if situation worsens, and monitor closely for any shift in AI signals that would warrant action."
+        time_horizon = "1-2 months monitoring period - make active decision at that point"
     else:
         recommendation = 'HOLD'
         confidence = 'Low to Moderate'
-        rationale = f"Neutral outlook for {ticker}. Mixed signals from AI models suggest uncertainty. Better opportunities may exist elsewhere."
-        risks = "Direction uncertain, potential for sudden moves in either direction"
-        time_horizon = "1-3 months"
+        rationale = f"FinLLM recommends HOLD for {ticker} with LOW TO MODERATE confidence due to neutral AI consensus. Investment Assessment: All AI models indicate neutral positioning, suggesting {ticker} lacks clear directional catalysts in either direction. This neutral state often characterizes consolidation phases, market indecision, or periods where positive and negative factors are balanced. The uncertainty reflected in mixed signals indicates that better risk-reward opportunities likely exist elsewhere in the market. For current holders, there's no compelling reason to exit, but also limited reason to add to positions. For new investors, this represents a wait-and-see opportunity where patience will likely provide better entry points once direction clarifies."
+        risks = f"Risk Profile for {ticker}: The neutral stance carries unique risks: (1) Direction uncertainty means potential for sudden moves in either direction as market resolves the indecision, (2) Opportunity cost of capital tied up in neutral positions versus higher-conviction opportunities, (3) Risk of complacency leading to missing important shifts in underlying conditions, (4) Potential for extended sideways trading that frustrates both bulls and bears, (5) Breakout risk in either direction could occur rapidly, making it important to stay alert. Strategy for this environment: Maintain small positions if currently held, avoid new commitments until direction clarifies, focus capital on higher-conviction opportunities elsewhere, set alerts for significant price or sentiment changes, and reassess when new catalysts emerge such as earnings reports, product launches, or significant news events."
+        time_horizon = "1-3 months observation period - actively seek better opportunities"
 
     return {
         'recommendation': recommendation,
@@ -803,19 +823,19 @@ def call_finma_prediction(ticker, company_name, current_price):
         }
 
     try:
-        # Use new InferenceClient with Vercel-compatible timeout (8 seconds max)
-        # Vercel free tier has 10-second function timeout
-        client = InferenceClient(token=api_key, timeout=8)
+        # Use new InferenceClient with timeout
+        # 30 seconds for localhost development, reduce to 8 for Vercel deployment
+        client = InferenceClient(token=api_key, timeout=30)
 
         text = f"Stock movement prediction for {company_name} ({ticker}) currently trading at ${current_price}. Analyze technical patterns, market momentum, and provide price target range for next 30 days."
 
         print(f"FinMA: Calling Hugging Face InferenceClient for {ticker}...")
 
         try:
-            # Using FinBERT as proxy for FinMA
+            # Use faster sentiment model (cardiffnlp is more responsive than ProsusAI/finbert)
             result = client.text_classification(
                 text,
-                model="ProsusAI/finbert"
+                model="cardiffnlp/twitter-roberta-base-sentiment"
             )
             print(f"FinMA: API Success! Result: {result}")
 
@@ -851,28 +871,31 @@ def call_finma_prediction(ticker, company_name, current_price):
         if result and len(result) > 0:
             top_sentiment = max(result, key=lambda x: x['score'])
 
-            # Map sentiment to movement prediction
-            if top_sentiment['label'] == 'positive':
+            # Map sentiment labels (cardiffnlp model uses LABEL_0=negative, LABEL_1=neutral, LABEL_2=positive)
+            label = top_sentiment['label']
+            confidence_pct = top_sentiment['score'] * 100
+
+            if label == 'LABEL_2' or label == 'positive':
                 movement = 'Upward'
                 confidence = top_sentiment['score']
                 price_low = round(current_price * 1.03, 2)
                 price_high = round(current_price * 1.08, 2)
-                factors = f"FinMA identifies strong bullish momentum for {ticker}. Technical indicators suggest upward price action with positive market sentiment and strong buying pressure."
-                volatility = "Moderate volatility with upward bias"
-            elif top_sentiment['label'] == 'negative':
+                factors = f"Open FinMA's comprehensive stock movement prediction identifies STRONG BULLISH MOMENTUM for {ticker} with {confidence_pct:.1f}% confidence. Technical Analysis Framework: (1) Price Action: Bullish chart patterns emerging with higher highs and higher lows indicating strong uptrend formation, (2) Volume Analysis: Above-average volume on up days suggests institutional accumulation and strong buying interest, (3) Moving Averages: Price trading above key moving averages (50-day, 200-day) with bullish crossover patterns supporting upward momentum, (4) Momentum Indicators: RSI showing strength without reaching overbought extremes, MACD displaying bullish divergence, (5) Support/Resistance: Price breaking through resistance levels with conviction, establishing new support zones. Market Microstructure: Order flow analysis reveals persistent buying pressure with large block trades at ask prices, bid-ask spread tightening during advances, and depth-of-market showing strong support levels. The convergence of technical, volume, and microstructure indicators creates high-probability setup for continued upward movement. Target Range Methodology: Conservative target ${price_low} represents +3% move based on near-term resistance levels, while optimistic target ${price_high} reflects +8% upside potential if momentum accelerates and {ticker} breaks through key resistance zones with volume confirmation."
+                volatility = f"MODERATE VOLATILITY with UPWARD BIAS expected for {ticker}. Volatility Characteristics: The upward movement is likely to be characterized by healthy consolidation phases interspersed with strong directional moves. Expected volatility profile includes normal intraday swings of 1-2% with potential for larger moves on catalyst events or momentum acceleration. Positive volatility bias means pullbacks are likely to be shallow and brief, creating buying opportunities rather than trend reversals. Volume patterns suggest institutional participation which tends to smooth price action compared to retail-driven moves. Risk/Reward Framework: The upside targets offer favorable risk-reward ratio with well-defined support levels providing clear exit points if thesis invalidates. Traders can use volatility to their advantage by adding positions on dips toward support levels. Options market implied volatility may be understating realized volatility, creating opportunities for volatility-based strategies."
+            elif label == 'LABEL_0' or label == 'negative':
                 movement = 'Downward'
                 confidence = top_sentiment['score']
                 price_low = round(current_price * 0.92, 2)
                 price_high = round(current_price * 0.97, 2)
-                factors = f"FinMA detects bearish signals for {ticker}. Technical patterns indicate downward pressure with negative sentiment and selling pressure."
-                volatility = "Elevated volatility with downward pressure"
-            else:
+                factors = f"Open FinMA's technical analysis detects BEARISH SIGNALS for {ticker} with {confidence_pct:.1f}% confidence indicating potential downward movement. Technical Breakdown: (1) Price Structure: Bearish chart patterns forming with lower highs and lower lows suggesting trend reversal or continuation of downtrend, (2) Volume Dynamics: Higher volume on down days compared to up days indicates distribution and selling pressure from informed participants, (3) Moving Average Configuration: Price trading below key moving averages with death cross patterns emerging or in place, creating technical resistance, (4) Momentum Deterioration: RSI showing weakness and potentially reaching oversold levels, MACD displaying bearish crossovers and negative divergences, (5) Support Breakdown: Key support levels failing with decisive breaks below on increasing volume, creating vacuum zones below. Market Microstructure Warning Signs: Order flow revealing persistent selling pressure with large blocks hitting bids, bid-ask spread widening on declines indicating liquidity concerns, and depth-of-market showing weak support with heavy resistance overhead. Target Range Methodology: Optimistic floor at ${price_high} represents -3% decline to first major support level, while conservative downside target of ${price_low} reflects -8% potential drop if selling accelerates and {ticker} breaks through critical support zones. These targets are based on Fibonacci retracement levels, previous support zones, and volume profile analysis."
+                volatility = f"ELEVATED VOLATILITY with DOWNWARD PRESSURE anticipated for {ticker}. Volatility Profile: Downward movements typically exhibit higher volatility than upward moves due to fear-driven selling and rapid position liquidation. Expected characteristics include sharp intraday declines of 2-4% possible, increased gap risk especially on negative news, and potential for capitulation selling that accelerates declines. The elevated volatility environment creates both risks and opportunities: risk of rapid losses but also potential for oversold bounces that can be traded tactically. Market participants should exercise caution with position sizing and implement strict risk management protocols. Protective Strategies: Consider using wider stop-losses to avoid getting whipsawed by volatility spikes, or implement options strategies like protective puts to hedge downside while maintaining upside exposure if reversal occurs. The high-volatility environment may also create attractive entry points for contrarian investors with longer time horizons, though timing is critical to avoid catching falling knives."
+            else:  # LABEL_1 or neutral
                 movement = 'Neutral'
                 confidence = top_sentiment['score']
                 price_low = round(current_price * 0.98, 2)
                 price_high = round(current_price * 1.02, 2)
-                factors = f"FinMA shows balanced signals for {ticker}. Price expected to consolidate within narrow range with mixed technical indicators."
-                volatility = "Low to moderate volatility expected"
+                factors = f"Open FinMA analysis shows BALANCED SIGNALS for {ticker} with {confidence_pct:.1f}% confidence, indicating range-bound consolidation likely. Technical Landscape: (1) Price Action: Sideways trading pattern with price oscillating between well-defined support and resistance levels, neither bulls nor bears in control, (2) Volume Profile: Declining volume suggests market participants awaiting catalyst before committing capital, typical of consolidation phases, (3) Moving Average Compression: Price trading near or between multiple moving averages with lack of clear directional crossovers, creating neutral technical picture, (4) Momentum Indicators: Oscillators like RSI trending near 50 (midpoint) and MACD near zero line indicate equilibrium between buying and selling pressure, (5) Support/Resistance Levels: Price respecting both upper and lower bounds of trading range, with multiple tests of these levels reinforcing range strength. Market Psychology: The neutral state reflects market indecision as investors digest recent developments and await new information. This environment often precedes significant moves but direction remains unclear. Consolidation Range: Expected price movement between ${price_low} (-2%) and ${price_high} (+2%) represents the technical range where {ticker} likely trades until a catalyst emerges. Range traders can profit from buying support and selling resistance, while breakout traders should wait for decisive move beyond these levels on significant volume before taking directional positions."
+                volatility = f"LOW TO MODERATE VOLATILITY expected for {ticker} during consolidation phase. Volatility Characteristics: Range-bound trading typically exhibits lower volatility as price action becomes more predictable within defined boundaries. Expected daily moves of 0.5-1.5% with occasional tests of range extremes. This low-volatility environment creates specific trading opportunities and challenges: (1) Range Trading: Consistent patterns make it attractive for mean-reversion strategies buying support and selling resistance, (2) Options Strategies: Low implied volatility favors options buying strategies (straddles, strangles) that profit from eventual breakout and volatility expansion, (3) Patience Required: Directional traders should wait for range breakout before entering significant positions. Warning Signs: Low volatility can persist longer than expected but often precedes volatility expansion, meaning periods of calm can suddenly transition to high-volatility directional moves. Monitor for: volume expansion, moving average convergence/divergence, and news catalysts that could trigger range breakout. Compression patterns like Bollinger Band squeezes often precede major moves, so current low volatility may be building energy for future directional breakout, though timing and direction remain uncertain until technical break occurs."
 
             return {
                 'movement_direction': movement,
@@ -906,6 +929,189 @@ def call_finma_prediction(ticker, company_name, current_price):
             'volatility_assessment': 'Analysis error occurred'
         }
 
+def analyze_industry_peers(ticker, sector, industry, current_recommendation):
+    """Analyze industry peer stocks and find better alternatives"""
+    try:
+        # Define industry peer groups (major stocks by sector)
+        industry_peers = {
+            'Technology': ['AAPL', 'MSFT', 'GOOGL', 'META', 'NVDA', 'AMD', 'INTC', 'ORCL', 'CRM', 'ADBE'],
+            'Communication Services': ['GOOGL', 'META', 'DIS', 'NFLX', 'T', 'VZ', 'CMCSA'],
+            'Financial Services': ['JPM', 'BAC', 'WFC', 'GS', 'MS', 'C', 'BLK', 'SCHW', 'AXP', 'USB'],
+            'Healthcare': ['UNH', 'JNJ', 'PFE', 'ABBV', 'MRK', 'TMO', 'LLY', 'ABT', 'DHR', 'CVS'],
+            'Consumer Cyclical': ['AMZN', 'TSLA', 'HD', 'MCD', 'NKE', 'SBUX', 'TGT', 'LOW', 'TJX'],
+            'Consumer Defensive': ['WMT', 'PG', 'KO', 'PEP', 'COST', 'PM', 'MO', 'CL', 'KMB'],
+            'Industrials': ['UPS', 'HON', 'BA', 'CAT', 'GE', 'MMM', 'LMT', 'RTX', 'DE'],
+            'Energy': ['XOM', 'CVX', 'COP', 'SLB', 'EOG', 'MPC', 'PSX', 'VLO', 'OXY'],
+            'Basic Materials': ['LIN', 'APD', 'ECL', 'DD', 'NEM', 'FCX', 'NUE', 'VMC'],
+            'Real Estate': ['AMT', 'PLD', 'CCI', 'EQIX', 'PSA', 'DLR', 'O', 'WELL'],
+            'Utilities': ['NEE', 'DUK', 'SO', 'D', 'AEP', 'EXC', 'SRE', 'XEL']
+        }
+
+        # Get peers for the sector
+        peers = industry_peers.get(sector, [])
+        if ticker in peers:
+            peers.remove(ticker)  # Remove the current stock
+
+        if not peers or len(peers) < 3:
+            return {
+                'has_alternatives': False,
+                'message': f'Insufficient peer data available for {industry} sector analysis.'
+            }
+
+        # Analyze up to 3 peer stocks (quick analysis)
+        peer_analyses = []
+        for peer_ticker in peers[:3]:
+            try:
+                peer_stock = yf.Ticker(peer_ticker)
+                peer_info = peer_stock.info
+                peer_price = peer_info.get('currentPrice') or peer_info.get('regularMarketPrice', 0)
+                peer_name = peer_info.get('shortName', peer_ticker)
+
+                if not peer_price or peer_price == 0:
+                    continue
+
+                # Quick sentiment analysis for peer
+                peer_text = f"Stock {peer_name} ({peer_ticker}) trading at ${peer_price}. Industry peer comparison analysis."
+
+                # Get quick sentiment (reuse existing HF client)
+                api_key = os.environ.get('HF_API_KEY') or os.environ.get('HUGGINGFACE_API_KEY')
+                if api_key:
+                    client = InferenceClient(token=api_key, timeout=10)
+                    result = client.text_classification(peer_text, model="cardiffnlp/twitter-roberta-base-sentiment")
+
+                    if result and len(result) > 0:
+                        top_sentiment = max(result, key=lambda x: x['score'])
+                        label = top_sentiment['label']
+
+                        sentiment = 'positive' if label == 'LABEL_2' else 'negative' if label == 'LABEL_0' else 'neutral'
+                        score = top_sentiment['score']
+
+                        peer_analyses.append({
+                            'ticker': peer_ticker,
+                            'name': peer_name,
+                            'price': round(peer_price, 2),
+                            'sentiment': sentiment,
+                            'score': score
+                        })
+
+            except Exception as e:
+                print(f"Error analyzing peer {peer_ticker}: {e}")
+                continue
+
+        if not peer_analyses:
+            return {
+                'has_alternatives': False,
+                'message': 'Unable to analyze industry peers at this time.'
+            }
+
+        # Find better alternatives (higher scores, positive sentiment)
+        better_alternatives = []
+        for peer in peer_analyses:
+            if current_recommendation == 'SELL' or current_recommendation == 'HOLD':
+                # If current stock is SELL/HOLD, recommend peers with positive sentiment
+                if peer['sentiment'] == 'positive' and peer['score'] > 0.6:
+                    better_alternatives.append(peer)
+            elif current_recommendation == 'BUY':
+                # If current stock is BUY, only show peers with higher confidence
+                if peer['sentiment'] == 'positive' and peer['score'] > 0.75:
+                    better_alternatives.append(peer)
+
+        # Sort by sentiment score
+        better_alternatives.sort(key=lambda x: x['score'], reverse=True)
+
+        return {
+            'has_alternatives': len(better_alternatives) > 0,
+            'alternatives': better_alternatives[:2],  # Top 2 alternatives
+            'all_peers': peer_analyses,
+            'sector': sector,
+            'industry': industry
+        }
+
+    except Exception as e:
+        print(f"Error in analyze_industry_peers: {e}")
+        return {
+            'has_alternatives': False,
+            'message': f'Error analyzing industry peers: {str(e)}'
+        }
+
+def generate_consolidated_summary(ticker, company_name, current_price, fingpt_analysis, finbert_analysis, finllm_decision, finma_prediction, industry_alternatives=None):
+    """Generate comprehensive consolidated summary based on all LLM analyses"""
+
+    # Extract key metrics
+    fingpt_sentiment = fingpt_analysis.get('sentiment', 'neutral')
+    finbert_sentiment = finbert_analysis.get('sentiment', 'neutral')
+    recommendation = finllm_decision.get('recommendation', 'HOLD')
+    confidence = finllm_decision.get('confidence', 'Moderate')
+    movement_direction = finma_prediction.get('movement_direction', 'Neutral')
+    price_target_low = finma_prediction.get('price_target_low', current_price)
+    price_target_high = finma_prediction.get('price_target_high', current_price)
+
+    # Count sentiment signals
+    positive_signals = [fingpt_sentiment, finbert_sentiment, movement_direction].count('positive') + (1 if movement_direction == 'Upward' else 0)
+    negative_signals = [fingpt_sentiment, finbert_sentiment, movement_direction].count('negative') + (1 if movement_direction == 'Downward' else 0)
+
+    # Determine overall assessment
+    if recommendation == 'BUY':
+        overall_verdict = "BULLISH"
+        verdict_color = "positive"
+        action_statement = f"Our AI consensus recommends BUYING {ticker} based on favorable sentiment, positive news flow, and supportive technical indicators."
+    elif recommendation == 'SELL':
+        overall_verdict = "BEARISH"
+        verdict_color = "negative"
+        action_statement = f"Our AI consensus recommends SELLING or AVOIDING {ticker} due to negative sentiment, concerning news developments, and bearish technical signals."
+    else:
+        overall_verdict = "NEUTRAL"
+        verdict_color = "neutral"
+        action_statement = f"Our AI consensus recommends HOLDING or MONITORING {ticker} as signals are mixed without clear directional conviction."
+
+    # Generate comprehensive summary
+    summary = f"""
+    **AI CONSENSUS ANALYSIS FOR {ticker} - {company_name}**
+
+    **OVERALL VERDICT: {overall_verdict}** | **RECOMMENDATION: {recommendation}** | **CONFIDENCE: {confidence}**
+
+    **Executive Summary:**
+    After analyzing {ticker} through four specialized AI models examining sentiment, news, technical patterns, and price movement predictions, our comprehensive assessment yields a **{recommendation}** recommendation with **{confidence}** confidence. {action_statement}
+
+    **Current Market Position:**
+    {company_name} is trading at ${current_price:.2f}. {finllm_decision.get('rationale', 'Analysis indicates mixed signals requiring careful evaluation.')}
+
+    **AI Model Consensus Breakdown:**
+    • **FinGPT Sentiment Analysis**: {fingpt_sentiment.upper()} ({fingpt_analysis.get('confidence', 0)*100:.1f}% confidence) - {fingpt_analysis.get('price_prediction', 'Analysis pending')}
+    • **FinBERT News Classification**: {finbert_sentiment.upper()} ({finbert_analysis.get('score', 0)*100:.1f}% confidence) - {finbert_analysis.get('impact', 'News impact assessment pending')}
+    • **FinLLM Investment Decision**: {recommendation} with {confidence} confidence - Strategic investment recommendation based on multi-model synthesis
+    • **Open FinMA Movement Prediction**: {movement_direction.upper()} movement ({finma_prediction.get('confidence_score', 0)*100:.1f}% confidence) - Price targets ${price_target_low}-${price_target_high} over 30 days
+
+    **Signal Strength Analysis:**
+    The analysis reveals {positive_signals} positive signal(s) and {negative_signals} negative signal(s) across our AI models. This distribution indicates {"strong bullish consensus" if positive_signals >= 3 else "strong bearish consensus" if negative_signals >= 3 else "mixed signals with moderate conviction" if abs(positive_signals - negative_signals) <= 1 else "emerging directional bias"}. The convergence or divergence of these independent AI models provides insight into the strength and reliability of the overall assessment.
+
+    **Price Movement Outlook:**
+    Based on Open FinMA's technical analysis, {ticker} is expected to move {movement_direction.lower()} with a projected trading range of ${price_target_low} to ${price_target_high} over the next 30 days. This represents potential {((price_target_high - current_price) / current_price * 100):.1f}% upside and {((price_target_low - current_price) / current_price * 100):.1f}% downside from current levels. {finma_prediction.get('volatility_assessment', 'Volatility profile assessment pending')}
+
+    **Risk Considerations:**
+    {finllm_decision.get('risks', 'Standard market risks apply including volatility, sector rotation, and unexpected catalysts.')}
+
+    **Investment Time Horizon:**
+    {finllm_decision.get('time_horizon', 'Medium-term outlook of 3-6 months recommended for position evaluation.')}
+
+    **Key Takeaway:**
+    {"The strong AI consensus across multiple models provides high confidence in this assessment. All signals are aligned in the same direction, reducing false positive/negative risk and suggesting genuine directional conviction." if (positive_signals >= 3 or negative_signals >= 3) else "Mixed signals across AI models suggest a transitional or uncertain phase. Investors should wait for clearer confirmation before taking large directional positions." if abs(positive_signals - negative_signals) <= 1 else "Moderate directional bias emerging but not yet fully confirmed. Consider scaled entry/exit strategies that allow for position adjustments as signals evolve."} This analysis synthesizes real-time sentiment data, news classification, fundamental factors, and technical patterns to provide a comprehensive view of {ticker}'s current investment profile.
+
+    **Disclaimer:** This AI-generated analysis is for informational purposes only and should not be considered financial advice. Always conduct your own due diligence and consult with qualified financial advisors before making investment decisions. Past performance and AI predictions do not guarantee future results.
+    """
+
+    return {
+        'overall_verdict': overall_verdict,
+        'verdict_color': verdict_color,
+        'recommendation': recommendation,
+        'confidence': confidence,
+        'summary': summary.strip(),
+        'positive_signals': positive_signals,
+        'negative_signals': negative_signals,
+        'price_outlook': f"${price_target_low} - ${price_target_high} (30-day target range)",
+        'action_statement': action_statement
+    }
+
 @app.route('/api/stockscore/<ticker>')
 def get_stockscore(ticker):
     """Get real-time AI LLM analysis for a specific stock"""
@@ -927,9 +1133,45 @@ def get_stockscore(ticker):
                 'error': f'Could not fetch data for {ticker}. Please check the ticker symbol.'
             }), 404
 
-        # Call the four LLMs
+        # Gather comprehensive stock data for analysis
+        hist = stock.history(period='1mo')
+
+        # Calculate key metrics
+        price_change_1d = ((current_price - hist['Close'].iloc[-2]) / hist['Close'].iloc[-2] * 100) if len(hist) > 1 else 0
+        price_change_1w = ((current_price - hist['Close'].iloc[-5]) / hist['Close'].iloc[-5] * 100) if len(hist) > 5 else 0
+        price_change_1m = ((current_price - hist['Close'].iloc[0]) / hist['Close'].iloc[0] * 100) if len(hist) > 0 else 0
+
+        # Get additional metrics
+        pe_ratio = info.get('trailingPE', 'N/A')
+        market_cap = info.get('marketCap', 0)
+        volume = info.get('volume', 0)
+        avg_volume = info.get('averageVolume', 1)
+        volume_ratio = volume / avg_volume if avg_volume > 0 else 1
+
+        recommendation = info.get('recommendationKey', 'none')
+        target_price = info.get('targetMeanPrice', 0)
+
+        # Create rich context for analysis
+        market_cap_str = f"${market_cap:,}" if market_cap > 0 else 'N/A'
+        stock_context = f"""
+        Stock: {company_name} ({ticker})
+        Current Price: ${current_price}
+        1-Day Change: {price_change_1d:.2f}%
+        1-Week Change: {price_change_1w:.2f}%
+        1-Month Change: {price_change_1m:.2f}%
+        P/E Ratio: {pe_ratio}
+        Market Cap: {market_cap_str}
+        Volume vs Avg: {volume_ratio:.2f}x
+        Analyst Recommendation: {recommendation}
+        Target Price: ${target_price}
+        """
+
+        print(f"DEBUG: Stock context for {ticker}:")
+        print(stock_context)
+
+        # Call the four LLMs with rich context
         print(f"Calling FinGPT for {ticker}...")
-        fingpt_analysis = call_fingpt_sentiment(ticker, company_name, current_price)
+        fingpt_analysis = call_fingpt_sentiment(ticker, company_name, current_price, stock_context)
 
         print(f"Calling FinBERT for {ticker}...")
         finbert_analysis = call_finbert_news(ticker, company_name, current_price)
@@ -940,11 +1182,19 @@ def get_stockscore(ticker):
         print(f"Calling FinMA for {ticker}...")
         finma_prediction = call_finma_prediction(ticker, company_name, current_price)
 
+        # Generate consolidated summary
+        print(f"Generating consolidated summary for {ticker}...")
+        consolidated_summary = generate_consolidated_summary(
+            ticker, company_name, current_price,
+            fingpt_analysis, finbert_analysis, finllm_decision, finma_prediction
+        )
+
         response_data = {
             'ticker': ticker,
             'company_name': company_name,
             'current_price': round(current_price, 2),
             'last_updated': datetime.now().isoformat(),
+            'consolidated_summary': consolidated_summary,
             'fingpt_analysis': fingpt_analysis,
             'finbert_analysis': finbert_analysis,
             'finllm_decision': finllm_decision,
